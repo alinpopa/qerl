@@ -1,5 +1,7 @@
 -module(qerl_stomp).
--export([process_data/2, send_response/1, end_request/1, connect/2, process_header_start/1]).
+-export([process_data/2, send_response/1]).
+-export([end_request/1, connect/2, process_header_start/1]).
+-export([strip_carriage_return/1]).
 
 connect(Data, ClientInfo) ->
 	erlang:list_to_binary("CONNECTED" ++ "\n" ++ "session: " ++
@@ -21,7 +23,6 @@ process_data(Data, ClientInfo) ->
 generate_session_id(ClientInfo) ->
 	{Ok,{Ip,Port}} = ClientInfo,
 	SessionId = lists:flatten(io_lib:format("ok:~w-ip:~w-port:~w",[Ok, Ip, Port])),
-	%io:format("SessionID: ~s~n",[SessionId]),
 	SessionId.
 
 send_response(Data) ->
@@ -31,18 +32,27 @@ send_response(Data) ->
 	io:format("~w~n",[NewList]),
 	erlang:list_to_atom(string:to_lower(string:substr(ListReqData, string:len(ListReqData), 1))).
 
-end_request(Data) ->
-	ListReqData = strip_carriage_return(erlang:binary_to_list(Data)),
-	lists:member(0, ListReqData).
+end_request(ListData) ->
+	ListReqData = strip_carriage_return(ListData),
+	case null_expected(ListReqData) of
+		true -> lists:member(0, ListReqData);
+		_ -> false
+	end.
+
+null_expected(ListData) ->
+	T1 = string:str(ListData, [10,10]) =/= 0,
+	if
+		T1 == true -> true;
+		true ->
+			T2 = string:str(ListData, [10,0,10,0]) =/= 0,
+			if
+				T2 == true -> true;
+				true -> false
+			end
+	end.
 
 strip_carriage_return(List) ->
-	F = fun(X) ->
-			if
-				X =/= 13 -> X;
-				true -> []
-			end
-	end,
-	lists:flatten(lists:map(F, List)).
+	lists:filter(fun(X) -> X =/= 13 end, List).
 
 get_frame_start(Data) ->
 	ListReqData = strip_carriage_return(erlang:binary_to_list(Data)),

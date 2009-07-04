@@ -4,7 +4,7 @@
 
 -define(DEFAULT_READ_BUFFER, 0).
 -define(DEFAULT_PORT, 5559).
--define(MAX_TCP_CONNECTIONS, 1000).
+-define(MAX_TCP_CONNECTIONS, 0).
 -define(TCP_OPTIONS, [binary, {packet, 0}, {active, false}, {reuseaddr, true}, {backlog, ?MAX_TCP_CONNECTIONS}]).
 -define(QERL_STOMP, qerl_stomp).
 
@@ -35,12 +35,14 @@ accept(LSocket, F) ->
 loop(Socket, F, RawData) ->
 	case gen_tcp:recv(Socket,?DEFAULT_READ_BUFFER) of
 		{ok, Data} ->
-			case ?QERL_STOMP:end_request(Data) of
+			NewRawData = lists:append(RawData, erlang:binary_to_list(Data)),
+			case ?QERL_STOMP:end_request(NewRawData) of
 				true ->
-					io:format("Frame start: ~s~n", [?QERL_STOMP:process_header_start(Data)]),
-					loop(Socket, F, RawData);
+					io:format("Raw data: ~p~n",[?QERL_STOMP:strip_carriage_return(NewRawData)]),
+					io:format(">>> EOF MESSAGE <<<~n",[]),
+					loop(Socket, F, []);
 				_   ->
-					loop(Socket, F, lists:append(RawData, erlang:binary_to_list(Data)))
+					loop(Socket, F, NewRawData)
 			end;
 		{error, closed} ->
 			ok
