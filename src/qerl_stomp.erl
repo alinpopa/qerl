@@ -5,7 +5,9 @@
 % in order to generate a session id.
 process_data(RawListData, ClientInfo) ->
 	ListData = strip_carriage_return(RawListData),
+	io:format("----------REQUEST---------~n",[]),
 	io:format("ListData: ~w~nClientInfo: ~w~n",[ListData, ClientInfo]),
+	io:format("----------REQUEST---------~n",[]),
 	Header = get_header(ListData),
 	case Header of
 		"DISCONNECT" ->
@@ -44,26 +46,27 @@ format_response(ListResponse) ->
 	io:format("-------------END RESPONSE--------------~n",[]),
 	ListResponse.
 
-% Check if the passed ListData contains the null byte.
+% Check if the passed ListData contains the null byte as the last element.
 end_request(ListData) ->
 	ListReqData = strip_carriage_return(ListData),
 	case null_expected(ListReqData) of
-		true -> lists:member(0, ListReqData);
+		true ->
+			Last = lists:last(ListReqData) =:= 10,
+			if
+				Last == true ->
+					TrimListData = string:substr(ListReqData, 1, erlang:length(ListReqData)-1),
+					io:format("Trim data~n",[]),
+					lists:last(TrimListData) =:= 0;
+				true -> false
+			end;
 		_ -> false
 	end.
 
 % Check if in the passed ListData, a null byte should be expected.
 null_expected(ListData) ->
-	Cond1 = string:str(ListData, [10,10,0]) =/= 0,
-	if
-		Cond1 == true -> true;
-		true ->
-			Cond2 = string:str(ListData, [10,0,10,0]) =/= 0,
-			if
-				Cond2 == true -> true;
-				true -> false
-			end
-	end.
+	TrimData = string:substr(ListData, 1, erlang:length(ListData)-1),
+	(string:str(TrimData, [10,10]) =/= 0
+	orelse string:str(TrimData, [10,0,10,0]) =/= 0).
 
 % Filter all occurences of carriage return (ASCII 13) in the passed List.
 strip_carriage_return(List) ->
