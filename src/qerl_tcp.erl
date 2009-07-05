@@ -9,50 +9,54 @@
 -define(QERL_STOMP, qerl_stomp).
 
 loop() ->
-	loop(fun ?QERL_STOMP:process_data/2).
+	loop(fun ?QERL_STOMP:process_data/2, fun ?QERL_STOMP:end_request/1).
 
-loop(F) ->
+loop(FProcessor, FIsEndRequest) ->
 	receive
 		{start,Port} ->
 			io:format("Time to start now on port ~w~n",[Port]),
-			listen(Port, F);
+			listen(Port, FProcessor, FIsEndRequest);
 		stop ->
 			exit(self(), kill)
 	end.
 
-% Call echo:listen(Port) to start the service.
-listen(Port, F) ->
+listen(Port, FProcessor, FIsEndRequest) ->
 	{ok, LSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
-	accept(LSocket, F).
+	accept(LSocket, FProcessor, FIsEndRequest).
 
-% Wait for incoming connections and spawn the echo loop when we get one.
-accept(LSocket, F) ->
+% Wait for incoming connections and spawn the loop when we get one.
+accept(LSocket, FProcessor, FIsEndRequest) ->
 	{ok, Socket} = gen_tcp:accept(LSocket),
-	spawn(fun() -> loop(Socket, F, []) end),
-	accept(LSocket, F).
+	spawn(fun() -> loop(Socket, FProcessor, FIsEndRequest, []) end),
+	accept(LSocket, FProcessor, FIsEndRequest).
 
-% Echo back whatever data we receive on Socket.
-loop(Socket, F, RawData) ->
+loop(Socket, FProcessor, FIsEndRequest, ListData) ->
 	case gen_tcp:recv(Socket,?DEFAULT_READ_BUFFER) of
 		{ok, Data} ->
-			NewRawData = lists:append(RawData, erlang:binary_to_list(Data)),
-			case ?QERL_STOMP:end_request(NewRawData) of
+			NewListData = lists:append(ListData, erlang:binary_to_list(Data)),
+			case FIsEndRequest(NewListData) of
 				true ->
-					io:format("Raw data: ~p~n",[?QERL_STOMP:strip_carriage_return(NewRawData)]),
-					io:format(">>> EOF MESSAGE <<<~n",[]),
-					loop(Socket, F, []);
+					FProcessorRes = FProcessor(NewListData, inet:peername(Socket)),
+					case FProcessorRes of
+						{send_response, Resp} -> gen_tcp:send(Socket, [Resp]);
+						{disconnect,_} -> gen_tcp:close(Socket);
+						_ -> nothing_to_do
+					end,
+					loop(Socket, FProcessor, FIsEndRequest, []);
 				_   ->
-					loop(Socket, F, NewRawData)
+					loop(Socket, FProcessor, FIsEndRequest, NewListData)
 			end;
 		{error, closed} ->
 			ok
 	end.
 
+% Starts the tcp server using default port.
 start() ->
 	Pid = spawn(fun loop/0),
 	Pid ! {start,?DEFAULT_PORT},
 	Pid.
 
+% Starts the tcp server on a specific port.
 start(Port) ->
 	case Port of
 		[T|_] ->

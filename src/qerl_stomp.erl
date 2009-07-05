@@ -1,37 +1,50 @@
 -module(qerl_stomp).
--export([process_data/2, send_response/1]).
--export([end_request/1, connect/2, process_header_start/1]).
--export([strip_carriage_return/1]).
+-export([process_data/2, end_request/1]).
 
-connect(Data, ClientInfo) ->
-	erlang:list_to_binary("CONNECTED" ++ "\n" ++ "session: " ++
-							generate_session_id(ClientInfo) ++
-							[10,10,0]).
-
-parse_header(ReqData) ->
-	ListReqData = strip_carriage_return(erlang:binary_to_list(ReqData)),
-	AtomHeader = erlang:list_to_atom(string:to_lower(string:substr(ListReqData, 1, string:chr(ListReqData, 10) - 1))),
-	AtomHeader.
-
-process_data(Data, ClientInfo) ->
-	Header = parse_header(Data),
+% Process data got from client (passed as a List). Also ClientInfo is passed
+% in order to generate a session id.
+process_data(RawListData, ClientInfo) ->
+	ListData = strip_carriage_return(RawListData),
+	io:format("ListData: ~w~nClientInfo: ~w~n",[ListData, ClientInfo]),
+	Header = get_header(ListData),
 	case Header of
-		connect  -> {ok, connect(Data, ClientInfo)};
-		_ 		 -> {error, Header}
+		"DISCONNECT" ->
+			{disconnect, disconnect};
+		"CONNECT" ->
+			{send_response, response_connected(ClientInfo)};
+		_ ->
+			{send_response, response_error("Unknown STOMP action: " ++ Header)}
 	end.
 
+% Generate a session id based on ClientInfo.
 generate_session_id(ClientInfo) ->
 	{Ok,{Ip,Port}} = ClientInfo,
-	SessionId = lists:flatten(io_lib:format("ok:~w-ip:~w-port:~w",[Ok, Ip, Port])),
-	SessionId.
+	lists:flatten(io_lib:format("ok:~w-ip:~w-port:~w",[Ok, Ip, Port])).
 
-send_response(Data) ->
-	ListReqData = strip_carriage_return(erlang:binary_to_list(Data)),
-	io:format("Got list: ~w~n",[ListReqData]),
-	NewList = lists:takewhile(fun(X) -> X =/= 0 end, ListReqData),
-	io:format("~w~n",[NewList]),
-	erlang:list_to_atom(string:to_lower(string:substr(ListReqData, string:len(ListReqData), 1))).
+% Create the STOMP connected response.
+response_connected(ClientInfo) ->
+	format_response("CONNECTED" ++
+		"\n" ++
+		"session" ++
+		generate_session_id(ClientInfo) ++
+		[10,10,0]).
 
+% Create the STOMP error response by adding an extra Error Message to it.
+response_error(ErrorMessage) ->
+	format_response("ERROR" ++
+		"\n" ++
+		"message:" ++
+		ErrorMessage ++
+		[10,10,0]).
+% Extra format the response before sending it back to client.
+format_response(ListResponse) ->
+	io:format("------------START RESPONSE-------------~n",[]),
+	io:format("STRING:~n~s~n",[ListResponse]),
+	io:format("RAW:~n~w~n",[ListResponse]),
+	io:format("-------------END RESPONSE--------------~n",[]),
+	ListResponse.
+
+% Check if the passed ListData contains the null byte.
 end_request(ListData) ->
 	ListReqData = strip_carriage_return(ListData),
 	case null_expected(ListReqData) of
@@ -39,38 +52,25 @@ end_request(ListData) ->
 		_ -> false
 	end.
 
+% Check if in the passed ListData, a null byte should be expected.
 null_expected(ListData) ->
-	T1 = string:str(ListData, [10,10]) =/= 0,
+	Cond1 = string:str(ListData, [10,10,0]) =/= 0,
 	if
-		T1 == true -> true;
+		Cond1 == true -> true;
 		true ->
-			T2 = string:str(ListData, [10,0,10,0]) =/= 0,
+			Cond2 = string:str(ListData, [10,0,10,0]) =/= 0,
 			if
-				T2 == true -> true;
+				Cond2 == true -> true;
 				true -> false
 			end
 	end.
 
+% Filter all occurences of carriage return (ASCII 13) in the passed List.
 strip_carriage_return(List) ->
 	lists:filter(fun(X) -> X =/= 13 end, List).
 
-get_frame_start(Data) ->
-	ListReqData = strip_carriage_return(erlang:binary_to_list(Data)),
-	string:substr(ListReqData, 1, string:chr(ListReqData, 10) - 1).
-
-process_header_start(Data) ->
-	FrameStart = get_frame_start(Data),
-	io:format("F: ~s~n",[FrameStart]),
-	case FrameStart of
-		"CONNECT"     -> "SERVER: Connect";
-		"SEND"        -> "SERVER: Send";
-		"SUBSCRIBE"   -> "SERVER: Subscribe";
-		"UNSUBSCRIBE" -> "SERVER: Unsubscribe";
-		"BEGIN"       -> "SERVER: Begin";
-		"COMMIT"      -> "SERVER: Commit";
-		"ABORT"       -> "SERVER: Abort";
-		"ACK"         -> "SERVER: Ack";
-		"DISCONNECT"  -> "SERVER: Disconnect";
-		_             -> "SERVER: Unknown header"
-	end.
+% Return header from a passed ListData.
+% The return header will be a character list.
+get_header(ListData) ->
+	string:substr(ListData, 1, string:chr(ListData, 10) - 1).
 
