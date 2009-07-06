@@ -62,11 +62,23 @@ end_request(ListData) ->
 		_ -> false
 	end.
 
+null_expected([], _) -> false;
+null_expected([F|Fs], Args) ->
+	case erlang:apply(F, Args) of
+		true -> true;
+		_ -> null_expected(Fs, Args)
+	end.	
+
 % Check if in the passed ListData, a null byte should be expected.
 null_expected(ListData) ->
 	TrimData = string:substr(ListData, 1, erlang:length(ListData)-1),
-	(string:str(TrimData, [10,10]) =/= 0
-	orelse string:str(TrimData, [10,0,10,0]) =/= 0).
+	Conditions = [
+		fun(X) -> string:str(X, [10,10]) =/= 0 end,
+		fun(X) -> string:str(X, [10,0,10,0]) =/= 0 end
+	],
+	null_expected(Conditions, [TrimData]).
+	%(string:str(TrimData, [10,10]) =/= 0
+	%orelse string:str(TrimData, [10,0,10,0]) =/= 0).
 
 % Filter all occurences of carriage return (ASCII 13) in the passed List.
 strip_carriage_return(List) ->
