@@ -5,14 +5,16 @@
 % in order to generate a session id.
 process_data(RawListData, ClientInfo) ->
 	ListData = strip_carriage_return(RawListData),
-	io:format("----------REQUEST---------~n",[]),
-	io:format("ListData: ~w~nClientInfo: ~w~n",[ListData, ClientInfo]),
-	io:format("----------REQUEST---------~n",[]),
-	Header = get_header(ListData),
+	%io:format("----------REQUEST---------~n",[]),
+	%io:format("ListData: ~w~nClientInfo: ~w~n",[ListData, ClientInfo]),
+	%io:format("----------REQUEST---------~n",[]),
+	{Header, Rest} = get_header(ListData),
 	case Header of
 		"DISCONNECT" ->
 			{disconnect, disconnect};
 		"CONNECT" ->
+			ConnectHeaders = process_headers(Rest),
+			io:format("ConnectHeaders: ~p~n",[ConnectHeaders]),
 			{send_response, response_connected(ClientInfo)};
 		_ ->
 			{send_response, response_error("Unknown STOMP action: " ++ Header)}
@@ -40,10 +42,10 @@ response_error(ErrorMessage) ->
 		[10,10,0]).
 % Extra format the response before sending it back to client.
 format_response(ListResponse) ->
-	io:format("------------START RESPONSE-------------~n",[]),
-	io:format("STRING:~n~s~n",[ListResponse]),
-	io:format("RAW:~n~w~n",[ListResponse]),
-	io:format("-------------END RESPONSE--------------~n",[]),
+	%io:format("------------START RESPONSE-------------~n",[]),
+	%io:format("STRING:~n~s~n",[ListResponse]),
+	%io:format("RAW:~n~w~n",[ListResponse]),
+	%io:format("-------------END RESPONSE--------------~n",[]),
 	ListResponse.
 
 % Check if the passed ListData contains the null byte as the last element.
@@ -55,7 +57,7 @@ end_request(ListData) ->
 			if
 				Last == true ->
 					TrimListData = string:substr(ListReqData, 1, erlang:length(ListReqData)-1),
-					io:format("Trim data~n",[]),
+					%io:format("Trim data~n",[]),
 					lists:last(TrimListData) =:= 0;
 				true -> false
 			end;
@@ -87,5 +89,30 @@ strip_carriage_return(List) ->
 % Return header from a passed ListData.
 % The return header will be a character list.
 get_header(ListData) ->
-	string:substr(ListData, 1, string:chr(ListData, 10) - 1).
+	{Header, RawRest} = lists:splitwith(fun(X) -> X =/= 10 end, ListData),
+	[_|Rest] = RawRest,
+	{Header, Rest}.	
+
+%% Process headers and returns a list of them
+process_headers(ListData) ->
+	process_headers(ListData, 10).
+
+process_headers(ListData, Element) ->
+	process_headers(ListData, [], Element).
+
+process_headers([], [[]|AccL], _Element) -> AccL;
+process_headers([], [[0]|AccL], _Element) -> AccL;
+process_headers([], AccL, _Element) -> AccL;
+process_headers(_ListData, [[]|AccL], _Element) -> AccL;
+process_headers(_ListData, [[0]|AccL], _Element) -> AccL;
+process_headers(ListData, AccL, Element) ->
+	{Head, NewRawL} = lists:splitwith(fun(X) -> X =/= Element end, ListData),
+	io:format("Head: ~p~n",[Head]),
+	if
+		NewRawL == [] ->
+			process_headers([], [Head|AccL], Element);
+		true          ->
+			[_|NewL] = NewRawL,
+			process_headers(NewL, [Head|AccL], Element)
+	end.
 
