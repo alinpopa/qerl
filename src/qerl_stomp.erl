@@ -50,19 +50,37 @@ format_response(ListResponse) ->
 
 % Check if the passed ListData contains the null byte as the last element.
 end_request(ListData) ->
-	ListReqData = strip_carriage_return(ListData),
-	case null_expected(ListReqData) of
-		true ->
-			Last = lists:last(ListReqData) =:= 10,
-			if
-				Last == true ->
-					TrimListData = string:substr(ListReqData, 1, erlang:length(ListReqData)-1),
-					%io:format("Trim data~n",[]),
-					lists:last(TrimListData) =:= 0;
-				true -> false
-			end;
-		_ -> false
-	end.
+    io:format("ListData: ~p~n",[ListData]),
+    is_eof(ListData).
+	%ListReqData = strip_carriage_return(ListData),
+	%case null_expected(ListReqData) of
+	%	true ->
+	%		%Last = lists:last(ListReqData) =:= 10,
+	%		Last = is_eof(ListReqData),
+	%		if
+	%			Last == true ->
+	%				TrimListData = string:substr(ListReqData, 1, erlang:length(ListReqData)-1),
+	%				%io:format("Trim data~n",[]),
+	%				lists:last(TrimListData) =:= 0;
+	%			true -> false
+	%		end;
+	%	_ -> false
+	%end.
+
+is_eof(ListData) ->
+	Conditions = [
+		fun(X) -> string:str(X, [0]) =/= 0 end
+		%fun(X) -> string:str(X, [10,0,10]) =/= 0 end,
+		%fun(X) -> string:str(X, [13,10,13,10,0]) =/= 0 end
+	],
+    is_eof(Conditions, ListData).
+
+is_eof([], _) -> false;
+is_eof([F|Fs], ListData) ->
+    case erlang:apply(F, [ListData]) of
+        true -> true;
+        _ -> is_eof(Fs, ListData)
+    end.
 
 null_expected([], _) -> false;
 null_expected([F|Fs], Args) ->
@@ -76,7 +94,9 @@ null_expected(ListData) ->
 	TrimData = string:substr(ListData, 1, erlang:length(ListData)-1),
 	Conditions = [
 		fun(X) -> string:str(X, [10,10]) =/= 0 end,
-		fun(X) -> string:str(X, [10,0,10,0]) =/= 0 end
+		fun(X) -> string:str(X, [10,0,10]) =/= 0 end,
+		fun(X) -> string:str(X, [10,0,10,0]) =/= 0 end,
+		fun(X) -> string:str(X, [10,10,0]) =/= 0 end
 	],
 	null_expected(Conditions, [TrimData]).
 	%(string:str(TrimData, [10,10]) =/= 0

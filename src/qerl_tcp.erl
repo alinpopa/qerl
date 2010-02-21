@@ -34,6 +34,7 @@ loop(Socket, FProcessor, FIsEndRequest, ListData) ->
 	case gen_tcp:recv(Socket,?DEFAULT_READ_BUFFER) of
 		{ok, Data} ->
 			NewListData = lists:append(ListData, erlang:binary_to_list(Data)),
+            io:format("DATA:~p~n",[NewListData]),
 			case FIsEndRequest(NewListData) of
 				true ->
 					FProcessorRes = FProcessor(NewListData, inet:peername(Socket)),
