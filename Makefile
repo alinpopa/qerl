@@ -1,5 +1,5 @@
 all:
-	(mkdir ../ebin;cd src;$(MAKE) all)
+	(mkdir ebin;cd src;$(MAKE) all)
 
 edoc:
 	(cd src;$(MAKE) edoc)
