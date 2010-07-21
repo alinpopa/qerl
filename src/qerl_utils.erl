@@ -2,6 +2,7 @@
 -export([append/2, strip_cr/1, trim/1, bin_to_list/1]).
 -import(lists, [filter/2, last/1, sublist/2, map/2]).
 
+%% Append a list (2nd param) to the end of the other (1st param).
 append([], List) -> List;
 append([First|Rest], List) -> [First|append(Rest,List)].
 

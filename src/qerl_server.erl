@@ -32,6 +32,8 @@ accept(Listen) ->
     end.
 
 %% Process incomming data by using external logic
+proc_frame(Socket) -> proc_frame(Socket, []).
+
 proc_frame(Socket, DataToProc) ->
     ProcFun = fun(X,Y) -> qerl_proc:proc_frame(X, Y) end,
     EndFun = fun(X) -> qerl_protocol:is_eof(X) end,
