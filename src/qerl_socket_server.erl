@@ -38,6 +38,7 @@ accept_loop({Server, LSocket, {M, F}})  ->
     {ok, Socket} = gen_tcp:accept(LSocket),
     gen_server:cast(Server, {accepted, {LSocket, self()}}),
     {ok,Pid} = qerl_fsm:start_link(),
+    gen_tcp:controlling_process(Socket, Pid),
     qerl_fsm:set_socket(Socket).
     % Let the server spawn a new process and replace this loop
     % with the echo loop, to avoid blocking
