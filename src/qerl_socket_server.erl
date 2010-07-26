@@ -40,9 +40,6 @@ accept_loop({Server, LSocket, {M, F}})  ->
     {ok,Pid} = qerl_fsm:start_link(),
     gen_tcp:controlling_process(Socket, Pid),
     qerl_fsm:set_socket(Socket).
-    % Let the server spawn a new process and replace this loop
-    % with the echo loop, to avoid blocking
-    % M:F(Socket).
 
 % To be more robust we should be using spawn_link and trapping exits
 accept(State = #server_state{lsocket=LSocket, loop = Loop}) ->
