@@ -49,14 +49,16 @@ accept(State = #server_state{lsocket=LSocket, loop = Loop}) ->
 
 % These are just here to suppress warnings.
 handle_call({stop}, _Caller, State) ->
+    {stop, ok, State};
+handle_call(_Msg, _Caller, State) -> 
+    {noreply, State}.
+handle_info(_Msg, Library) -> {noreply, Library}.
+terminate(_Reason, State) ->
     LSocket = State#server_state.lsocket,
     io:format("LSocket stop: ~p~n",[LSocket]),
     CloseResponse = gen_tcp:close(LSocket),
     io:format("Close response: ~p~n",[CloseResponse]),
-    {reply, ok, State};
-handle_call(_Msg, _Caller, State) -> 
-    {noreply, State}.
-handle_info(_Msg, Library) -> {noreply, Library}.
-terminate(_Reason, _Library) -> ok.
+	ok.
+
 code_change(_OldVersion, Library, _Extra) -> {ok, Library}.
 
