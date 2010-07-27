@@ -3,13 +3,17 @@
 
 -export([start_link/0, set_socket/1]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
--export([parsing/2]).
+-export([parsing/2, wait_for_socket/2]).
 
 -import(qerl_protocol, [is_eof/1]).
 -import(qerl_utils, [append/2]).
 
-parsing({parse,Socket}, State) ->
-    {{socket,_},{data,Data}} = State,
+wait_for_socket({socket_ready, Socket}, _State) ->
+    inet:setopts(Socket, [{active, once}]),
+    {next_state, parsing, create_state_data(Socket,[])}.
+
+parsing(_, State) ->
+    {{socket,Socket},{data,Data}} = State,
     case is_eof(Data) of
         true ->
             info("done parsing data:~n~p~n",[Data]),
@@ -21,7 +25,6 @@ parsing({parse,Socket}, State) ->
 
 create_state_data(Socket,Data) -> {{socket,Socket},{data,Data}}.
 
-info(Msg) -> info(Msg,[]).
 info(Msg,Params) -> error_logger:info_msg(Msg,Params).
 
 %% gen_fsm functions
@@ -29,10 +32,10 @@ start_link() -> gen_fsm:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 set_socket(Socket) ->
     inet:setopts(Socket, [{active, once}]),
-    gen_fsm:send_event(?MODULE, {parse,Socket}).
+    gen_fsm:send_event(?MODULE, {socket_ready,Socket}).
 
 %% gen_fsm callbacks
-init([]) -> {ok, parsing, create_state_data(none,[])}.
+init([]) -> {ok, wait_for_socket, create_state_data(none,[])}.
 
 handle_event(_Event, StateName, State) -> {next_state, StateName, State}.
 handle_sync_event(_Event, _From, StateName, State) -> {reply, ok, StateName, State}.
