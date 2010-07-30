@@ -15,12 +15,15 @@
 start(Port) ->
     io:format("Starting gen_server"),
     State = #server_state{port = Port},
-    gen_server:start_link({local, ?MODULE}, ?MODULE, State, []).
+    case gen_server:start(?MODULE, State, []) of
+        {ok,Pid} -> register(?MODULE,Pid);
+        Else -> error_logger:error_msg("error starting qerl_socket_server process",[Else])
+    end.
 
-stop() ->
-    gen_server:call(?MODULE, {stop}).
+stop() -> gen_server:call(?MODULE, {stop}).
 
 init(State  = #server_state{port=Port}) ->
+    io:format(" -> init-proc: ~p~n",[length(processes())]),
     process_flag(trap_exit, true),
     case gen_tcp:listen(Port, ?TCP_OPTIONS) of
         {ok, LSocket} ->
@@ -37,30 +40,29 @@ handle_cast({accepted, _Pid}, State=#server_state{})  ->
 accept_loop({Server, LSocket})  ->
     {ok, Socket} = gen_tcp:accept(LSocket),
     gen_server:cast(Server, {accepted, self()}),
-    case qerl_fsm:start_link() of
+    %case qerl_fsm:start_link() of
+    case qerl_fsm:start() of
         {ok, Pid} ->
+            io:format(" -> qerl_fsm:start(), pid ~p, socket ~p~n",[Pid,Socket]),
             gen_tcp:controlling_process(Socket,Pid),
-            qerl_fsm:set_socket(Socket);
+            qerl_fsm:set_socket(Pid,Socket);
         Else -> error_logger:error_msg("error starting qerl_fsm process",[Else])
     end.
 
-% To be more robust we should be using spawn_link and trapping exits
 accept(State = #server_state{lsocket=LSocket}) ->
-    %proc_lib:spawn(?MODULE, accept_loop, [{self(), LSocket}]),
-    proc_lib:spawn_link(?MODULE, accept_loop, [{self(), LSocket}]),
+    proc_lib:spawn(?MODULE, accept_loop, [{self(), LSocket}]),
+    %proc_lib:spawn_link(?MODULE, accept_loop, [{self(), LSocket}]),
     State.
 
 % These are just here to suppress warnings.
 handle_call({stop}, _Caller, State) ->
-    io:format(" handle_call ~p~n",[State]),
-    {stop, ok, State};
+    {stop, normal, ok, State};
 handle_call(_Msg, _Caller, State) -> 
     {noreply, State}.
 handle_info(Msg, Library) ->
-    io:format(" -> handle_info: Msg - ~p, Library - ~p~n",[Msg,Library]),
+    io:format(" -> gen_server:handle_info: Msg - ~p, Library - ~p~n",[Msg,Library]),
     {noreply, Library}.
 terminate(_Reason, State) ->
-    io:format(" terminate ~p~n",[State]),
     gen_tcp:close(State#server_state.lsocket),
 	ok.
 

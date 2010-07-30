@@ -1,7 +1,7 @@
 -module(qerl_fsm).
 -behaviour(gen_fsm).
 
--export([start_link/0, set_socket/1]).
+-export([start/0, set_socket/2]).
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 % states
@@ -11,6 +11,7 @@
 -import(qerl_utils, [append/2]).
 
 'WAIT_FOR_SOCKET'({socket_ready, Socket}, _State) ->
+    io:format(" -> wait for socket: socket - ~p~n",[Socket]),
     inet:setopts(Socket, [{active, once}]),
     {next_state, 'INCOMPLETE_FRAME', create_state_data(Socket,[])}.
 
@@ -37,18 +38,24 @@ info(Msg,Params) -> error_logger:info_msg(Msg,Params).
 
 %% gen_fsm functions
 start_link() -> gen_fsm:start_link({local, ?MODULE}, ?MODULE, [], []).
+start() -> gen_fsm:start(?MODULE, [], []).
 
-set_socket(Socket) ->
+set_socket(Pid,Socket) ->
+    io:format(" -> set_socket: ~p~n",[Socket]),
     inet:setopts(Socket, [{active, once}]),
-    gen_fsm:send_event(?MODULE, {socket_ready,Socket}).
+    io:format(" -> send_event: ~p~n",[Socket]),
+    gen_fsm:send_event(Pid, {socket_ready,Socket}).
 
 %% gen_fsm callbacks
-init([]) -> {ok, 'WAIT_FOR_SOCKET', create_state_data(none,[])}.
+init([]) -> 
+    io:format(" -> gen_fsm:init~n"),
+    {ok, 'WAIT_FOR_SOCKET', create_state_data(none,[])}.
 
 handle_event(_Event, StateName, State) -> {next_state, StateName, State}.
 handle_sync_event(_Event, _From, StateName, State) -> {reply, ok, StateName, State}.
 
 handle_info({tcp, Socket, Bin}, StateName, State) ->
+    io:format(" -> handle_info: socket - ~p, StateName - ~p, State - ~p, Bin - ~p~n",[Socket,StateName,State,Bin]),
     inet:setopts(Socket, [{active, once}]),
     ListData = erlang:binary_to_list(Bin),
     ?MODULE:StateName({data,ListData},State);
