@@ -4,8 +4,8 @@
 
 behaviour_info(callbacks) ->
     [{init,0},
-     {produce,2},
-     {consume,1}];
+     {produce,1},
+     {consume,0}];
 behaviour_info(_Other) ->
     undefined.
 

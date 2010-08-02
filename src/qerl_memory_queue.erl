@@ -1,11 +1,15 @@
 -module(qerl_memory_queue).
 -behaviour(qerl_queue).
 
--export([init/0,produce/2,consume/1]).
+-export([init/0,produce/1,consume/0,stop/0]).
 
 init() ->
     Queue = queue:new(),
-    spawn(fun() -> loop(Queue) end).
+    register(?MODULE,spawn(fun() -> loop(Queue) end)).
+
+stop() ->
+    Pid = whereis(?MODULE),
+    exit(Pid,kill).
 
 loop(Q) ->
     receive
@@ -25,15 +29,15 @@ loop(Q) ->
         _Else -> loop(Q)
     end.
 
-produce(QPid,Msg) ->
-    QPid ! {self(),produce,Msg},
+produce(Msg) ->
+    ?MODULE ! {self(),produce,Msg},
     receive
         {produce,ok} -> io:format("Message produced~n");
         Else -> io:format("ERROR producing message: ~p~n",[Else])
     end.
 
-consume(QPid) ->
-    QPid ! {self(),consume},
+consume() ->
+    ?MODULE ! {self(),consume},
     receive
         {consume,Msg} -> io:format("Got msg from queue: ~p~n",[Msg]);
         {err,Msg} -> io:format("Queue is empty, no message to consume: ~p~n",[Msg]);
