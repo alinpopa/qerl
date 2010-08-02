@@ -13,7 +13,7 @@ directory BIN
 SRC.each do |fn|
     BEAM << dest = File.join(BIN, File.basename(fn).ext('beam'))
     file dest do
-        sh "erlc -Ilib #{ERLC_FLAGS} -o #{BIN} #{fn} "
+        sh "erlc -Ilib #{ERLC_FLAGS} -o #{BIN} #{fn} -pa #{BIN}"
     end
 end
 
