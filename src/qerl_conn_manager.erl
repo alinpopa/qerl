@@ -32,30 +32,20 @@ init([LModule,Port,LSize]) ->
     end.
 
 handle_call(detach,{From,_Ref}, State = #server_state{module=LModule,socket=LSocket}) ->
-    io:format(" -> ~p:handle_call >> detach, From - ~p~n",[?MODULE,From]),
     ok = spawn_listeners(LModule,LSocket,1),
-    io:format("    -> spawned new listener~n"),
     unlink(From),
-    io:format("    -> unlinked From ~p~n",[From]),
     {reply,ok,State};
 handle_call(_Request,_From,State) ->
     Reply = ok,
     {reply,Reply,State}.
 
 handle_cast(_Msg,State) -> {noreply,State}.
-
-handle_info(Info,State) ->
-    {noreply,State}.
-
-terminate(_Reason,_State) ->
-    io:format(" -> closing connection manager~n"),
-    ok.
-
-code_change(_OldVsn, State, _Extra) ->
-    {ok,State}.
+handle_info(Info,State) -> {noreply,State}.
+terminate(_Reason,_State) -> ok.
+code_change(_OldVsn, State, _Extra) -> {ok,State}.
 
 spawn_listeners(_,_,0) -> ok;
 spawn_listeners(LModule,LSocket,LSize) ->
-    LModule:start_link(LSocket),
+    LModule:start_link(?MODULE,LSocket),
     spawn_listeners(LModule,LSocket,LSize-1).
 

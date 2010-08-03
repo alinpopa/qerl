@@ -3,20 +3,20 @@
 
 -compile(export_all).
 
-start_link(LSocket) ->
+start_link(ConnMngModule,LSocket) ->
     io:format(" -> ~p:start_link >> LSocket - ~p~n",[?MODULE,LSocket]),
-    gen_server:start_link(?MODULE,[LSocket],[]).
+    gen_server:start_link(?MODULE,[ConnMngModule,LSocket],[]).
 
-init([LSocket]) ->
+init([ConnMngModule,LSocket]) ->
     io:format(" -> ~p:init >> LSocket - ~p~n",[?MODULE,LSocket]),
-    gen_server:cast(self(), {listen, LSocket}),
+    gen_server:cast(self(), {listen,ConnMngModule,LSocket}),
     {ok,[]}.
 
-handle_cast({listen,LSocket}, []) ->
+handle_cast({listen,ConnMngModule,LSocket}, []) ->
     {ok,ClientSocket} = gen_tcp:accept(LSocket),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
-    qerl_conn_manager:detach(),
+    ConnMngModule:detach(),
     {noreply,{ClientSocket}};
 handle_cast(_Msg,State) ->
     {noreply,State}.

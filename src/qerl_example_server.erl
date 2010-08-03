@@ -3,5 +3,5 @@
 
 %start() -> qerl_socket_server:start(7000).
 stop() -> qerl_socket_server:stop().
-start() -> qerl_connection_manager:start_link(qerl_conn_listener,7000,10).
+start() -> qerl_conn_manager:start_link(qerl_conn_listener,7000,10).
 
