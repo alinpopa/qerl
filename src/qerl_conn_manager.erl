@@ -1,4 +1,4 @@
--module(qerl_connection_manager).
+-module(qerl_conn_manager).
 -behaviour(gen_server).
 
 -compile(export_all).

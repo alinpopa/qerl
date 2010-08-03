@@ -16,7 +16,7 @@ handle_cast({listen,LSocket}, []) ->
     {ok,ClientSocket} = gen_tcp:accept(LSocket),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
-    qerl_connection_manager:detach(),
+    qerl_conn_manager:detach(),
     {noreply,{ClientSocket}};
 handle_cast(_Msg,State) ->
     {noreply,State}.
