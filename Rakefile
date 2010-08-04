@@ -2,30 +2,18 @@ require 'rake'
 require 'rake/clean'
 
 BIN = 'ebin'
-SRC_FOLDER = 'src'
-ERLC_FLAGS = "+warn_unused_vars +warn_unused_import"
+INCLUDE = 'include'
+ERLC_FLAGS = "-I#{INCLUDE} +warn_unused_vars +warn_unused_import"
 CLEAN.include(["#{BIN}/*.beam", '*.dump'])
-SRC = FileList["#{SRC_FOLDER}/**/*.erl", "#{SRC_FOLDER}/**/*.hrl"]
-BEAM = []
+SRC = FileList['src/*.erl','src/*.hrl']
+OBJ = SRC.pathmap("%{src,ebin}X.beam")
 
 directory BIN
-
-SRC.each do |fn|
-    BEAM << dest = File.join(BIN, File.basename(fn).ext('beam'))
-    file dest do
-        sh "erlc -Ilib #{ERLC_FLAGS} -o #{BIN} #{fn} -pa #{BIN}"
-    end
-end
 
 namespace :erlang do
     desc "starting qerl"
     task :run => [:compile] do
         sh("erl -noshell -pa #{BIN} -s qerl_example_server start")
-    end
-
-    desc "run tests"
-    task :test => BEAM do
-        sh("erl -noshell -s test_my_mod test -s init stop")
     end
 end
 
@@ -40,6 +28,10 @@ task :default => [:compile]
 desc "start the erlang application"
 task :start => ['erlang:run']
 
+rule ".beam" => ["%{ebin,src}X.erl"] do |t|
+      sh "erlc -pa #{BIN} -W #{ERLC_FLAGS} -o #{BIN} #{t.source}"
+end
+
 desc "compile the current sources"
-task :compile => [:init] + BEAM
+task :compile => ['ebin'] + OBJ
 
