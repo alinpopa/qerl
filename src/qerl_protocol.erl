@@ -1,5 +1,5 @@
 -module(qerl_protocol).
--export([is_eof/1, parse_frame/1]).
+-export([is_eof/1, parse_frame/1, parse/1]).
 -import(string, [str/2]).
 -import(lists, [splitwith/2, flatten/1]).
 -import(re, [split/2]).
@@ -28,4 +28,8 @@ proc_headers(Headers) ->
 
 proc_body(Body) ->
     trim(flatten(Body)).
+
+parse(<<"CONNECT\r\n">>) -> {connect,ok};
+parse(<<"DISCONNECT\r\n">>) -> {disconnect,ok};
+parse(Bin) -> {something_else,Bin}.
 

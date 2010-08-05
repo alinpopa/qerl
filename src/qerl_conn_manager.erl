@@ -26,6 +26,7 @@ init([LModule,Port,LSize]) ->
     case gen_tcp:listen(Port,?TCP_OPTIONS) of
         {ok,LSocket} ->
             ok = spawn_listeners(LModule,LSocket,LSize),
+            io:format(" >> Server started successful on port: ~p, listeners size: ~p~n",[Port,LSize]),
             {ok,#server_state{module=LModule,socket=LSocket,listeners_size=LSize}};
         {error,Reason} ->
             {stop,Reason}
