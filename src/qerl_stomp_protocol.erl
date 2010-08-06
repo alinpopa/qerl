@@ -15,7 +15,7 @@
 %%%    End =/= 0.
 
 is_eof(Bin) ->
-    case binary:match(drop_cr(Bin),<<?LF,?LF,?NULL>>) of
+    case binary:match(drop_cr(Bin),<<?LF,?NULL>>) of
         nomatch -> false;
         _ -> true 
     end.
@@ -43,7 +43,7 @@ parse(Bin) ->
     LfBin = drop_cr(Bin),
     parse_msg(binary:split(LfBin,<<?LF>>,[global])). 
 
-parse_msg([<<"CONNECT">>|T]) -> {connect, lists:filter(fun is_valid/1, T)};
+parse_msg([<<"CONNECT">>|T]) -> {connect, {headers,get_headers(T)}};
 parse_msg([<<"DISCONNECT">>|T]) -> {disconnect,T};
 parse_msg(Bin) -> {something_else,Bin}.
 
@@ -58,5 +58,14 @@ is_valid(Element) ->
         <<>> -> false;
         <<?NULL>> -> false;
         _ -> true
+    end.
+
+get_headers(BinList) -> get_headers(BinList,[]).
+
+get_headers([],Headers) -> Headers;
+get_headers([H|T],Headers) ->
+    case H of
+        <<>> -> Headers;
+        Else -> get_headers(T,[Else|Headers])
     end.
 
