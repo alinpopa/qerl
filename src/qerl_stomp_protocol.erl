@@ -19,8 +19,14 @@ parse(Bin) ->
     parse_msg(binary:split(LfBin,<<?LF>>,[trim])). 
 
 parse_msg([<<"CONNECT">>|T]) -> {connect, {headers,parse_headers(T)}};
-parse_msg([<<"DISCONNECT">>|T]) -> {disconnect,{headers,parse_headers(T)}};
 parse_msg([<<"SEND">>|T]) -> {send,{headers,parse_headers(T)},{body,parse_body(T)}};
+parse_msg([<<"SUBSCRIBE">>|T]) -> {subscribe,{headers,parse_headers(T)}};
+parse_msg([<<"UNSUBSCRIBE">>|T]) -> {unsubscribe,{headers,parse_headers(T)}};
+parse_msg([<<"BEGIN">>|T]) -> {begin_tx,{headers,parse_headers(T)}};
+parse_msg([<<"COMMIT">>|T]) -> {commit,{headers,parse_headers(T)}};
+parse_msg([<<"ABORT">>|T]) -> {abort,{headers,parse_headers(T)}};
+parse_msg([<<"ACK">>|T]) -> {ack,{headers,parse_headers(T)}};
+parse_msg([<<"DISCONNECT">>|T]) -> {disconnect,{headers,parse_headers(T)}};
 parse_msg(Bin) -> {something_else,Bin}.
 
 drop_cr(Bin) when is_binary(Bin) -> binary:replace(Bin,<<?CR>>,<<>>,[global]);
@@ -65,5 +71,8 @@ to_headers(BinHeaders) -> to_headers(BinHeaders,[]).
 to_headers([],Headers) -> Headers;
 to_headers([H|T],Headers) ->
     {BinK,BinV} = list_to_tuple(binary:split(H,<<":">>)),
-    to_headers(T,[{bin_to_list(BinK), bin_to_list(BinV)}|Headers]).
+    to_headers(T,[{bin_to_list(BinK), trim_left(bin_to_list(BinV))}|Headers]).
+
+trim_left([32|T]) -> trim_left(T);
+trim_left(L) -> L.
 
