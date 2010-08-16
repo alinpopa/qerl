@@ -19,7 +19,6 @@ parse(Bin) ->
     parse_msg(split(LfBin,<<?LF>>,[trim])). 
 
 parse_msg([<<"CONNECT">>,T]) -> {connect, parse_frame(T)};
-%parse_msg([<<"SEND">>|T]) -> {send,{headers,parse_headers(T)},{body,parse_body(T)}};
 parse_msg([<<"SEND">>,T]) -> {send,parse_frame(T)};
 parse_msg([<<"SUBSCRIBE">>,T]) -> {subscribe,{headers,parse_headers(T)}};
 parse_msg([<<"UNSUBSCRIBE">>,T]) -> {unsubscribe,{headers,parse_headers(T)}};
