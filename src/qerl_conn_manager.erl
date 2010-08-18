@@ -36,6 +36,7 @@ handle_call(detach,{From,_Ref}, State = #server_state{module=LModule,socket=LSoc
     ok = spawn_listeners(LModule,LSocket,1),
     unlink(From),
     {reply,ok,State};
+handle_call(stop,_From,State) -> {stop,normal,State};
 handle_call(_Request,_From,State) ->
     Reply = ok,
     {reply,Reply,State}.
