@@ -14,12 +14,23 @@ is_eof(Bin) ->
         _ -> true 
     end.
 
-proc([Rest]) -> {next,Rest};
-proc([Frame,Rest]) ->
-    Result = parse(Frame),
-    io:format("~p~n",[Result]),
-    proc(Rest);
-proc(Bin) -> proc(split(Bin,<<?NULL>>)).
+proc(Bin) ->
+    case split(Bin,<<?NULL>>) of
+        [Rest] -> {next,Rest};
+        [Frame,Rest] ->
+            proc_frame(Frame),
+            case Rest of
+                <<>> -> {ok};
+                <<?CR,?LF>> -> {ok};
+                <<?LF>> -> {ok};
+                Else ->
+                    io:format("Rest: ~p~n",[Else]),
+                    proc(Rest)
+            end
+    end.
+
+proc_frame(Frame) ->
+    io:format("Proccess frame: ~p~n",[Frame]).
 
 parse(Frame) ->
     LfBin = drop_cr(get_valid_data(Frame)),
@@ -78,7 +89,7 @@ drop_cr(Bin) when is_binary(Bin) -> replace(Bin,<<?CR>>,<<>>,[global]);
 drop_cr(_Bin) -> <<>>.
 
 get_valid_data(Bin) ->
-    [H|_] = split(Bin,<<?NULL,?LF>>,[trim]),
+    [H|_] = split(Bin,<<?NULL,?LF>>,[]),
     H.
 
 to_list(BinList) -> lists:map(fun(X) -> bin_to_list(X) end, lists:reverse(BinList)).

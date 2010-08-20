@@ -24,16 +24,14 @@ handle_cast(_Msg,State) ->
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
 handle_info({tcp,ClientSocket,Bin},State) ->
+    io:format("TCP data: ~p~n",[Bin]),
     {{client_socket,CSocket},{data,BinData},{fsm,FsmPid}} = State,
     NewBinData = <<BinData/binary, Bin/binary>>,
     inet:setopts(ClientSocket, [{active, once}]),
+    gen_tcp:send(CSocket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
     case qerl_stomp_protocol:proc(NewBinData) of
-        {next,ExtraFrame} ->
-            gen_tcp:send(CSocket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
-            {noreply,{{client_socket,CSocket},{data,ExtraFrame},{fsm,FsmPid}}};
-        Else ->
-            io:format("Error: ~p~n",[Else]),
-            {noreply,{{client_socket,CSocket},{data,<<>>},{fsm,FsmPid}}}
+        {next,Rest} -> {noreply,{{client_socket,CSocket},{data,Rest},{fsm,FsmPid}}};
+        {ok} -> {noreply,{{client_socket,CSocket},{data,<<>>},{fsm,FsmPid}}}
     end;
 handle_info({tcp_closed,_ClientSocket},State) -> {stop,normal,State};
 handle_info(_Info,State) -> {noreply,State}.
