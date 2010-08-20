@@ -27,14 +27,13 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     {{client_socket,CSocket},{data,BinData},{fsm,FsmPid}} = State,
     NewBinData = <<BinData/binary, Bin/binary>>,
     inet:setopts(ClientSocket, [{active, once}]),
-    case qerl_stomp_protocol:is_eof(NewBinData) of
-        true ->
-            Parsed = qerl_stomp_protocol:parse(NewBinData),
-            io:format("~p~n",[Parsed]),
-            {noreply,{{client_socket,CSocket},{data,<<>>},{fsm,FsmPid}}};
-        _ ->
-            io:format(" -> is_eof false~n"),
-            {noreply,{{client_socket,CSocket},{data,NewBinData},{fsm,FsmPid}}}
+    case qerl_stomp_protocol:proc(NewBinData) of
+        {next,ExtraFrame} ->
+            gen_tcp:send(CSocket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
+            {noreply,{{client_socket,CSocket},{data,ExtraFrame},{fsm,FsmPid}}};
+        Else ->
+            io:format("Error: ~p~n",[Else]),
+            {noreply,{{client_socket,CSocket},{data,<<>>},{fsm,FsmPid}}}
     end;
 handle_info({tcp_closed,_ClientSocket},State) -> {stop,normal,State};
 handle_info(_Info,State) -> {noreply,State}.

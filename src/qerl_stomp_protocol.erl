@@ -1,5 +1,5 @@
 -module(qerl_stomp_protocol).
--export([is_eof/1, parse/1]).
+-export([is_eof/1, parse/1, proc/1]).
 
 -import(binary, [bin_to_list/1, match/2, replace/4, split/2, split/3]).
 
@@ -9,38 +9,66 @@
 -define(COLLON,58).
 
 is_eof(Bin) ->
-    case match(drop_cr(Bin),<<?LF,?NULL>>) of
+    case match(Bin,<<?NULL>>) of
         nomatch -> false;
         _ -> true 
     end.
 
-parse(Bin) ->
-    LfBin = drop_cr(get_valid_data(Bin)),
+proc([Rest]) -> {next,Rest};
+proc([Frame,Rest]) ->
+    Result = parse(Frame),
+    io:format("~p~n",[Result]),
+    proc(Rest);
+proc(Bin) -> proc(split(Bin,<<?NULL>>)).
+
+parse(Frame) ->
+    LfBin = drop_cr(get_valid_data(Frame)),
     parse_msg(split(LfBin,<<?LF>>,[trim])). 
 
-parse_msg([<<"CONNECT">>,T]) -> {connect, parse_frame(T)};
-parse_msg([<<"SEND">>,T]) -> {send,parse_frame(T)};
-parse_msg([<<"SUBSCRIBE">>,T]) -> {subscribe,{headers,parse_headers(T)}};
-parse_msg([<<"UNSUBSCRIBE">>,T]) -> {unsubscribe,{headers,parse_headers(T)}};
-parse_msg([<<"BEGIN">>,T]) -> {begin_tx,{headers,parse_headers(T)}};
-parse_msg([<<"COMMIT">>,T]) -> {commit,{headers,parse_headers(T)}};
-parse_msg([<<"ABORT">>,T]) -> {abort,{headers,parse_headers(T)}};
-parse_msg([<<"ACK">>,T]) -> {ack,{headers,parse_headers(T)}};
-parse_msg([<<"DISCONNECT">>,T]) -> {disconnect,{headers,parse_headers(T)}};
+parse_msg([<<"CONNECT">>,Frame]) -> {connect,{headers,get_headers(Frame)}};
+parse_msg([<<"SEND">>,Frame]) -> {send,{headers,get_headers(Frame)},{body,get_body(Frame)}};
+parse_msg([<<"SUBSCRIBE">>,Frame]) -> {subscribe,{headers,get_headers(Frame)}};
+parse_msg([<<"UNSUBSCRIBE">>,Frame]) -> {unsubscribe,{headers,get_headers(Frame)}};
+parse_msg([<<"BEGIN">>,Frame]) -> {begin_tx,{headers,get_headers(Frame)}};
+parse_msg([<<"COMMIT">>,Frame]) -> {commit,{headers,get_headers(Frame)}};
+parse_msg([<<"ABORT">>,Frame]) -> {abort,{headers,get_headers(Frame)}};
+parse_msg([<<"ACK">>,Frame]) -> {ack,{headers,get_headers(Frame)}};
+parse_msg([<<"DISCONNECT">>,Frame]) -> {disconnect,{headers,get_headers(Frame)}};
 parse_msg(Bin) -> {something_else,Bin}.
 
-parse_frame(Frame) ->
-    case binary:first(Frame) of
-        ?LF -> {{headers,[]},{body,parse_body(Frame)}};
-        _Else -> parse_frame(split(Frame,<<?LF>>,[trim]), [])
+
+get_body(Frame) ->
+    case has_headers(Frame) of
+        true -> parse_body_with_headers(Frame);
+        false -> parse_body_without_headers(Frame)
     end.
 
-parse_body(<<?LF,Rest/binary>>) -> to_list_body(Rest);
-parse_body(BinData) -> to_list_body(BinData).
+get_headers(Frame) ->
+    case has_headers(Frame) of
+        true -> parse_headers(Frame);
+        false -> []
+    end.
 
-parse_frame([Rest],Acc) -> {{headers,parse_headers(Acc)},{body,parse_body(Rest)}};
-parse_frame([<<>>,Rest], Acc) -> {{headers,parse_headers(Acc)},{body,parse_body(Rest)}};
-parse_frame([Head,Rest], Acc) -> parse_frame(split(Rest,<<?LF>>,[trim]), [Head|Acc]).
+parse_headers(Frame) -> parse_headers(split(Frame,<<?LF>>,[trim]),[]).
+
+parse_headers([],Headers) -> to_headers(Headers);
+parse_headers([Head],Headers) -> to_headers(Headers);
+parse_headers([<<>>,_Rest],Headers) -> to_headers(Headers);
+parse_headers([H,Rest],Headers) -> parse_headers(split(Rest,<<?LF>>,[trim]),[H|Headers]).
+
+has_headers(Frame) ->
+    case binary:first(Frame) of
+        ?LF -> false;
+        _Else -> true
+    end.
+
+parse_body_with_headers([_Headers,Rest]) -> to_list_body(Rest);
+parse_body_with_headers([_H|_T]) -> [];
+parse_body_with_headers([]) -> [];
+parse_body_with_headers(BinData) -> parse_body_with_headers(split(BinData,<<?LF,?LF>>,[trim])).
+
+parse_body_without_headers(<<?LF,Rest/binary>>) -> to_list_body(Rest);
+parse_body_without_headers(BinData) -> to_list_body(BinData).
 
 to_list_body(BinBody) ->
     ListBody = binary:bin_to_list(BinBody),
@@ -48,32 +76,6 @@ to_list_body(BinBody) ->
 
 drop_cr(Bin) when is_binary(Bin) -> replace(Bin,<<?CR>>,<<>>,[global]);
 drop_cr(_Bin) -> <<>>.
-
-parse_headers([]) -> [];
-parse_headers(Headers) -> parse_headers(Headers,[]).
-
-parse_headers([],Headers) -> to_headers(Headers);
-parse_headers([H|T],Headers) ->
-    case H of
-        <<>> -> to_headers(Headers);
-        <<?NULL>> -> to_headers(Headers);
-        Else -> parse_headers(T,[Else|Headers])
-    end.
-
-%parse_body([]) -> [];
-%parse_body([H|_]) ->
-%    [_H|Body] = split(H,<<?LF,?LF>>,[global]),
-%    [BinBody|_] = Body,
-%    BinList = split(BinBody,<<?LF>>,[global]),
-%    parse_body(BinList,[]).
-%
-%parse_body([],Body) -> to_list(Body);
-%parse_body([H|T],Body) ->
-%    case H of
-%        <<>> -> to_list(Body);
-%        <<?NULL>> -> to_list(Body);
-%        Else -> parse_body(T,[Else|Body])
-%    end.
 
 get_valid_data(Bin) ->
     [H|_] = split(Bin,<<?NULL,?LF>>,[trim]),
@@ -83,7 +85,7 @@ to_list(BinList) -> lists:map(fun(X) -> bin_to_list(X) end, lists:reverse(BinLis
 
 to_headers(BinHeaders) -> to_headers(BinHeaders,[]).
 
-to_headers([],Headers) -> lists:reverse(Headers);
+to_headers([],Headers) -> Headers;
 to_headers([H|T],Headers) ->
     {BinK,BinV} = list_to_tuple(create_header(split(H,<<":">>))),
     to_headers(T,[{bin_to_list(BinK), trim_left(bin_to_list(BinV))}|Headers]).
