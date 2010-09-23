@@ -41,6 +41,7 @@ handle_info(_Info,State) -> {noreply,State}.
 
 terminate(_Reason,State) ->
     qerl_stomp_fsm:stop(State#conn_state.fsm),
+    io:format("Processes: ~p~n",[length(processes())]),
     ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
 
