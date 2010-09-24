@@ -15,7 +15,7 @@ init([ConnMngModule,LSocket]) ->
 handle_cast({listen,ConnMngModule,LSocket}, []) ->
     {ok,ClientSocket} = gen_tcp:accept(LSocket),
     io:format(" -> client connected~n"),
-    {ok,FsmPid} = qerl_stomp_fsm:start_link([]),
+    {ok,FsmPid} = qerl_stomp_fsm:start_link([?MODULE]),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
     ConnMngModule:detach(),
@@ -33,7 +33,7 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     case qerl_stomp_protocol:parse(NewBinData,State#conn_state.frames) of
         {next,NewFrames,Rest} -> {noreply,State#conn_state{data = Rest,frames = NewFrames}};
         {ok,AllFrames} ->
-            io:format("Parse all frames: ~p~n",[AllFrames]),
+            %io:format("Frames: ~p~n",[length(AllFrames)]),
             {noreply,State#conn_state{data = <<>>,frames = []}}
     end;
 handle_info({tcp_closed,_ClientSocket},State) -> {stop,normal,State};
@@ -41,7 +41,7 @@ handle_info(_Info,State) -> {noreply,State}.
 
 terminate(_Reason,State) ->
     qerl_stomp_fsm:stop(State#conn_state.fsm),
-    io:format("Processes: ~p~n",[length(processes())]),
+    %io:format("Processes: ~p~n",[length(processes())]),
     ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
 

@@ -5,11 +5,13 @@
 -export([start/1, start_link/1, stop/1]).
 -export(['READY'/2]).
 
+-record(state,{parent}).
+
 start(Args) -> gen_fsm:start(?MODULE, Args, []).
-
 start_link(Args) -> gen_fsm:start_link(?MODULE, Args, []).
-
-init(_Args) -> {ok, 'READY', []}.
+init(Args) ->
+    io:format("Args: ~p~n",[Args]),
+    {ok, 'READY', []}.
 
 'READY'({stop}, StateData) ->
     io:format("Stop the fsm module~n"),
@@ -17,21 +19,10 @@ init(_Args) -> {ok, 'READY', []}.
 'READY'(_Event, StateData) ->
     {stop, unimplemented, StateData}.
 
-stop(Pid) ->
-    gen_fsm:send_event(Pid, {stop}).
-
-handle_event(_Event, _StateName, StateData) ->
-    {stop, unimplemented, StateData}.
-
-handle_sync_event(_Event, _From, _StateName, StateData) ->
-    {stop, unimplemented, StateData}.
-
-handle_info(_Info, _StateName, StateData) ->
-    {stop, unimplemented, StateData}.
-
-terminate(_Reason, _StateName, _StateData) ->
-    ok.
-
-code_change(_OldVsn, StateName, StateData, _Extra) ->
-    {ok, StateName, StateData}.
+stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
+handle_event(_Event, _StateName, StateData) -> {stop, unimplemented, StateData}.
+handle_sync_event(_Event, _From, _StateName, StateData) -> {stop, unimplemented, StateData}.
+handle_info(_Info, _StateName, StateData) -> {stop, unimplemented, StateData}.
+terminate(_Reason, _StateName, _StateData) -> ok.
+code_change(_OldVsn, StateName, StateData, _Extra) -> {ok, StateName, StateData}.
 
