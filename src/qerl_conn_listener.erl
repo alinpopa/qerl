@@ -21,7 +21,7 @@ handle_cast({listen,ConnMngModule,LSocket}, []) ->
     ConnMngModule:detach(),
     {noreply,#conn_state{client_socket = ClientSocket,data = <<>>,frames = [],fsm = FsmPid}};
 handle_cast(Msg,State) ->
-    io:format("Got msg: ~p~n",[Msg]),
+    %io:format("Got msg: ~p~n",[Msg]),
     {noreply,State}.
 
 handle_call(_Request,_From,State) -> {reply,ok,State}.
@@ -32,16 +32,22 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     inet:setopts(State#conn_state.client_socket, [{active, once}]),
     gen_tcp:send(State#conn_state.client_socket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
     case qerl_stomp_protocol:parse(NewBinData,State#conn_state.frames) of
-        {next,NewFrames,Rest} -> {noreply,State#conn_state{data = Rest,frames = NewFrames}};
+        {next,NewFrames,Rest} ->
+            {noreply,State#conn_state{data = Rest,frames = NewFrames}};
         {ok,AllFrames} ->
             qerl_stomp_fsm:process(State#conn_state.fsm, AllFrames),
             {noreply,State#conn_state{data = <<>>,frames = []}}
     end;
-handle_info({tcp_closed,_ClientSocket},State) -> {stop,normal,State};
+handle_info({tcp_closed,_ClientSocket},State) ->
+    %trace("tcp_closed"),
+    {stop,normal,State};
 handle_info(_Info,State) -> {noreply,State}.
 
 terminate(_Reason,State) ->
+    %trace("got terminate event"),
     qerl_stomp_fsm:stop(State#conn_state.fsm),
     ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
+
+trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 

@@ -14,7 +14,7 @@ start_link(Args) -> gen_fsm:start_link(?MODULE, Args, []).
 init(Args) ->
     [Parent] = Args,
     gen_server:cast(Parent,{msg_from_fsm}),
-    io:format("Args: ~p~n",[Args]),
+    %io:format("Args: ~p~n",[Args]),
     {ok, 'READY', Args}.
 
 process(FsmPid, []) ->
@@ -24,19 +24,24 @@ process(FsmPid, [H|T]) ->
     process(FsmPid,T).
 
 'READY'({stop}, StateData) ->
-    log("STOP"),
+    trace("STOP"),
     {stop, normal, StateData};
 'READY'({connect,{headers,Headers}}, StateData) ->
-    log("CONNECT"),
+    trace("CONNECT"),
     {next_state, 'CONNECTED', StateData};
 'READY'(Event, StateData) ->
     {next_state, 'READY', StateData}.
 
 'CONNECTED'({stop},StateData) ->
-    log("STOP"),
+    trace("STOP"),
+    {stop, normal, StateData};
+'CONNECTED'({send,{headers,_},{body,_}},StateData) ->
+    trace("SEND"),
+    {next_state,'CONNECTED',StateData};
+'CONNECTED'({disconnect,{headers,_}},StateData) ->
+    trace("DISCONNECT"),
     {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
-    log("Connected and got normal event"),
     {next_state, 'CONNECTED', StateData}.
 
 stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
@@ -47,6 +52,6 @@ handle_info(_Info, _StateName, StateData) -> {stop, unimplemented, StateData}.
 terminate(_Reason, _StateName, _StateData) -> ok.
 code_change(_OldVsn, StateName, StateData, _Extra) -> {ok, StateName, StateData}.
 
-log(Msg) -> 
-    io:format("gen_fsm: ~p~n",[Msg]).
+trace(Msg) ->
+    io:format("~p: ~p~n",[?MODULE,Msg]).
 
