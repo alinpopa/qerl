@@ -37,9 +37,11 @@ process(FsmPid, [H|T]) ->
     {stop, normal, StateData};
 'CONNECTED'({send,{headers,_},{body,_}},StateData) ->
     trace("SEND"),
-    {next_state,'CONNECTED',StateData};
+    {next_state, 'CONNECTED', StateData};
 'CONNECTED'({disconnect,{headers,_}},StateData) ->
     trace("DISCONNECT"),
+    [Parent] = StateData,
+    qerl_conn_listener:stop(Parent),
     {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
     {next_state, 'CONNECTED', StateData}.
