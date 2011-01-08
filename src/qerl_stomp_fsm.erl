@@ -17,8 +17,8 @@ init(Args) ->
     %io:format("Args: ~p~n",[Args]),
     {ok, 'READY', Args}.
 
-process(FsmPid, []) ->
-    gen_fsm:send_event(FsmPid, {nothing});
+process(FsmPid, []) -> ok;
+    %gen_fsm:send_event(FsmPid, {nothing});
 process(FsmPid, [H|T]) ->
     gen_fsm:send_event(FsmPid,H),
     process(FsmPid,T).
@@ -28,6 +28,8 @@ process(FsmPid, [H|T]) ->
     {stop, normal, StateData};
 'READY'({connect,{headers,Headers}}, StateData) ->
     trace("CONNECT"),
+    [Parent] = StateData,
+    qerl_conn_listener:send_to_client(Parent,"CONNECTED\nsession:TEST123"),
     {next_state, 'CONNECTED', StateData};
 'READY'(Event, StateData) ->
     {next_state, 'READY', StateData}.
@@ -44,6 +46,7 @@ process(FsmPid, [H|T]) ->
     qerl_conn_listener:stop(Parent),
     {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
+    trace(Event),
     {next_state, 'CONNECTED', StateData}.
 
 stop(Pid) -> gen_fsm:send_event(Pid, {stop}).

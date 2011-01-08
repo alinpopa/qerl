@@ -8,14 +8,14 @@
 -define(NULL,0).
 -define(COLLON,58).
 
-is_eof(Bin) ->
-    case match(Bin,<<?NULL>>) of
+is_eof(BinData) ->
+    case match(BinData,<<?NULL>>) of
         nomatch -> false;
         _ -> true 
     end.
 
-parse(Bin,ParsedFrames) ->
-    case split(Bin,<<?NULL>>) of
+parse(BinData,ParsedFrames) ->
+    case split(BinData,<<?NULL>>) of
         [Rest] -> {next,ParsedFrames,Rest};
         [Frame,Rest] ->
             case Rest of
@@ -27,7 +27,7 @@ parse(Bin,ParsedFrames) ->
     end.
 
 parse(Frame) ->
-    LfBin = drop_cr(get_valid_data(Frame)),
+    LfBin = drop_cr(data_without_null_and_lf(Frame)),
     ToParse = split(LfBin,<<?LF>>,[]),
     case length(ToParse) of
         1 ->
@@ -89,8 +89,8 @@ to_list_body(BinBody) ->
 drop_cr(Bin) when is_binary(Bin) -> replace(Bin,<<?CR>>,<<>>,[global]);
 drop_cr(_Bin) -> <<>>.
 
-get_valid_data(Bin) ->
-    [H|_] = split(Bin,<<?NULL,?LF>>,[]),
+data_without_null_and_lf(BinData) ->
+    [H|_] = split(BinData,<<?NULL,?LF>>,[]),
     H.
 
 to_list(BinList) -> lists:map(fun(X) -> bin_to_list(X) end, lists:reverse(BinList)).

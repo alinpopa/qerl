@@ -7,8 +7,8 @@
 
 start_link(ConnMngModule,LSocket) -> gen_server:start_link(?MODULE,[ConnMngModule,LSocket],[]).
 
-stop(Pid) ->
-    gen_server:cast(Pid,{close}).
+stop(Pid) -> gen_server:cast(Pid,{close}).
+send_to_client(Pid,Msg) -> gen_server:cast(Pid, {send_to_client,Msg}).
 
 init([ConnMngModule,LSocket]) ->
     process_flag(trap_exit,true),
@@ -24,7 +24,11 @@ handle_cast({listen,ConnMngModule,LSocket}, []) ->
     ConnMngModule:detach(),
     {noreply,#conn_state{client_socket = ClientSocket,data = <<>>,frames = [],fsm = FsmPid}};
 handle_cast({close},State) ->
+    gen_tcp:close(State#conn_state.client_socket),
     {stop,normal,State};
+handle_cast({send_to_client,MsgToClient},State) ->
+    gen_tcp:send(State#conn_state.client_socket,[MsgToClient ++ [10,10,0]]),
+    {noreply,State};
 handle_cast(Msg,State) ->
     {noreply,State}.
 
@@ -34,7 +38,7 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     BinData = State#conn_state.data,
     NewBinData = <<BinData/binary, Bin/binary>>,
     inet:setopts(State#conn_state.client_socket, [{active, once}]),
-    gen_tcp:send(State#conn_state.client_socket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
+    %gen_tcp:send(State#conn_state.client_socket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
     case qerl_stomp_protocol:parse(NewBinData,State#conn_state.frames) of
         {next,NewFrames,Rest} ->
             {noreply,State#conn_state{data = Rest,frames = NewFrames}};
