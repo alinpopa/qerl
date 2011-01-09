@@ -32,6 +32,7 @@ process(FsmPid, [H|T]) ->
     qerl_conn_listener:send_to_client(Parent,"CONNECTED\nsession:TEST123"),
     {next_state, 'CONNECTED', StateData};
 'READY'(Event, StateData) ->
+    trace(Event),
     {next_state, 'READY', StateData}.
 
 'CONNECTED'({stop},StateData) ->

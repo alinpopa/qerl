@@ -114,3 +114,6 @@ create_header(L) ->
 trim_left([32|T]) -> trim_left(T);
 trim_left(L) -> L.
 
+trace(Msg) ->
+    io:format("~p: ~p~n",[?MODULE,Msg]).
+
