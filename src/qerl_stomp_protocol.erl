@@ -1,5 +1,5 @@
 -module(qerl_stomp_protocol).
--export([is_eof/1, parse/1, parse/2]).
+-export([is_eof/1, parse/1, parse/1,drop/2]).
 
 -import(binary, [bin_to_list/1, match/2, replace/4, split/2, split/3]).
 
@@ -9,20 +9,13 @@
 -define(COLLON,58).
 
 is_eof(BinData) ->
-    case match(BinData,<<?NULL>>) of
+    LfBin = drop(cr,BinData),
+    case match(LfBin,<<?NULL>>) of
         nomatch -> false;
-        _ -> true 
-    end.
-
-parse(BinData,ParsedFrames) ->
-    case split(BinData,<<?NULL>>) of
-        [Rest] -> {next,ParsedFrames,Rest};
-        [Frame,Rest] ->
-            case Rest of
-                <<>> -> {ok,ParsedFrames ++ [parse(Frame)]};
-                <<?CR,?LF>> -> {ok,ParsedFrames ++ [parse(Frame)]};
-                <<?LF>> -> {ok,ParsedFrames ++ [parse(Frame)]};
-                Else -> parse(Rest,ParsedFrames ++ [parse(Frame)])
+        _ ->
+            case match(LfBin,<<?LF,?LF>>) of
+                nomatch -> false;
+                _ -> true
             end
     end.
 
@@ -88,6 +81,14 @@ to_list_body(BinBody) ->
 
 drop_cr(Bin) when is_binary(Bin) -> replace(Bin,<<?CR>>,<<>>,[global]);
 drop_cr(_Bin) -> <<>>.
+
+drop(What,Bin) when is_binary(Bin) ->
+    case What of
+        cr -> replace(Bin,<<?CR>>,<<>>,[global]);
+        null -> replace(Bin,<<?NULL>>,<<>>,[global]);
+        _ -> Bin
+    end;
+drop(_What,_Bin) -> <<>>.
 
 data_without_null_and_lf(BinData) ->
     [H|_] = split(BinData,<<?NULL,?LF>>,[]),
