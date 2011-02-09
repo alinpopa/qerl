@@ -38,13 +38,13 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     BinData = State#conn_state.data,
     NewBinData = <<BinData/binary, Bin/binary>>,
     inet:setopts(State#conn_state.client_socket, [{active, once}]),
-    %gen_tcp:send(State#conn_state.client_socket,["CONNECTED\nsession:SOME_ID_HERE" ++ [10,10,0]]),
-    case qerl_stomp_protocol:parse(NewBinData,State#conn_state.frames) of
-        {next,NewFrames,Rest} ->
-            {noreply,State#conn_state{data = Rest,frames = NewFrames}};
-        {ok,AllFrames} ->
-            qerl_stomp_fsm:process(State#conn_state.fsm, AllFrames),
-            {noreply,State#conn_state{data = <<>>,frames = []}}
+    case qerl_stomp_protocol:is_eof(NewBinData) of
+        true ->
+            Parsed = qerl_stomp_protocol:parse(NewBinData),
+            qerl_stomp_fsm:process(State#conn_state.fsm, Parsed),
+            {noreply,State#conn_state{data = <<>>}};
+        _ ->
+            {noreply,State#conn_state{data = qerl_stomp_protocol:drop(null,NewBinData)}}
     end;
 handle_info({tcp_closed,_ClientSocket},State) ->
     qerl_stomp_fsm:stop(State#conn_state.fsm),
