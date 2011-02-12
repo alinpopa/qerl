@@ -6,10 +6,9 @@
 -define(LF,10).
 -define(CR,13).
 -define(NULL,0).
--define(COLLON,58).
 
 is_eof(BinData) ->
-    LfBin = drop(cr,BinData),
+    LfBin = drop_invalid_beginning_frame(drop(cr,BinData)),
     case match(LfBin,<<?NULL>>) of
         nomatch -> false;
         _ ->
@@ -20,7 +19,8 @@ is_eof(BinData) ->
     end.
 
 parse(Frame) ->
-    LfBin = drop_cr(data_without_null_and_lf(Frame)),
+    LfBin = drop_invalid_beginning_frame(drop(cr, data_without_null_and_lf(Frame))),
+    trace(LfBin),
     ToParse = split(LfBin,<<?LF>>,[]),
     case length(ToParse) of
         1 ->
@@ -52,8 +52,7 @@ get_headers(Frame) ->
         false -> []
     end.
 
-parse_headers(Frame) ->
-    parse_headers(split(Frame,<<?LF>>,[]),[]).
+parse_headers(Frame) -> parse_headers(split(Frame,<<?LF>>,[]),[]).
 
 parse_headers([],Headers) -> to_headers(Headers);
 parse_headers([Head],Headers) -> to_headers([Head|Headers]);
@@ -78,9 +77,6 @@ parse_body_without_headers(BinData) -> to_list_body(BinData).
 to_list_body(BinBody) ->
     ListBody = binary:bin_to_list(BinBody),
     lists:takewhile(fun(X) -> X =/= 0 end,ListBody).
-
-drop_cr(Bin) when is_binary(Bin) -> replace(Bin,<<?CR>>,<<>>,[global]);
-drop_cr(_Bin) -> <<>>.
 
 drop(What,Bin) when is_binary(Bin) ->
     case What of
@@ -114,6 +110,11 @@ create_header(L) ->
 
 trim_left([32|T]) -> trim_left(T);
 trim_left(L) -> L.
+
+drop_invalid_beginning_frame(<<>>) -> <<>>;
+drop_invalid_beginning_frame(<<?LF,Rest/binary>>) ->
+    drop_invalid_beginning_frame(Rest);
+drop_invalid_beginning_frame(Frame) -> Frame.
 
 trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 
