@@ -4,10 +4,10 @@
 -define(TO_TEST, qerl_stomp_protocol).
 
 is_eof_for_unary_bin_element_test() ->
-    true = ?TO_TEST:is_eof(<<0>>).
+    false = ?TO_TEST:is_eof(<<0>>).
 
 is_eof_for_multiple_bin_elements_test() ->
-    true = ?TO_TEST:is_eof(<<1,0,1>>).
+    true = ?TO_TEST:is_eof(<<1,10,10,0,1>>).
 
 is_eof_should_return_false_for_empty_binary_test() ->
     false = ?TO_TEST:is_eof(<<>>).

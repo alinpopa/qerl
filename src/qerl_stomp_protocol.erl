@@ -20,7 +20,6 @@ is_eof(BinData) ->
 
 parse(Frame) ->
     LfBin = drop_invalid_beginning_frame(drop(cr, data_without_null_and_lf(Frame))),
-    trace(LfBin),
     ToParse = split(LfBin,<<?LF>>,[]),
     case length(ToParse) of
         1 ->
