@@ -17,7 +17,7 @@ start(LModule,Port,LSize) ->
 %% - Listening Module (LModule)
 %% - port used for establishing the connection (Port)
 %% - the default number of preinitialized listeners (LSize)
-start_link(LModule,Port,LSize) -> gen_server:start_link({local,?MODULE},?MODULE,[LModule,Port,LSize],[]).
+start_link(LModule,Port,LSize) -> gen_server:start({local,?MODULE},?MODULE,[LModule,Port,LSize],[]).
 
 detach() -> gen_server:call(?MODULE,detach).
 
