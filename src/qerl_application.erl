@@ -1,7 +1,10 @@
 -module(qerl_application).
 -behaviour(application).
--export([start/0,stop/1]).
+-export([start/2,stop/1,go/0]).
 
-start() -> qerl_supervisor:start_link([]).
+start(_Type, StartArgs) ->
+    io:format("STAAAAAAAAAART~n"),
+    qerl_supervisor:start_link(StartArgs).
 stop(_State) -> ok.
+go() -> application:start(qerl_application).
 

@@ -3,10 +3,22 @@
 -export([start_link/1]).
 -export([init/1]).
 
-start_link(Args) -> supervisor:start_link(qerl_supervisor, [7000,10]).
-init([ListeningPort,InitialNoOfConnections]) ->
-    {ok, {{one_for_one, 1, 60},
-            [{qerl_conn_manager, {qerl_conn_manager, start_link, [qerl_conn_listener, ListeningPort, InitialNoOfConnections]},
-                    permanent, brutal_kill, worker, [qerl_conn_listener]}]}};
-init(Args) -> io:format("Wrong initializion params were passed: ~p~n",[Args]).
+start_link(_Args) ->
+    supervisor:start_link({local, qerl_supervisor}, qerl_supervisor, []).
+
+init([]) ->
+    RestartStrategy = one_for_one,
+    MaxRestarts = 100,
+    MaxTimeBetRestarts = 3600,
+    SupervisorFlags = {RestartStrategy, MaxRestarts, MaxTimeBetRestarts},
+    ChildSpecs = [
+        {qerl_conn_manager,
+            {qerl_conn_manager, start_link, [qerl_conn_listener, 7000, 10]},
+            permanent,
+            brutal_kill,
+            worker,
+            [qerl_conn_listener]
+        }
+    ],
+    {ok,{SupervisorFlags,ChildSpecs}}.
 
