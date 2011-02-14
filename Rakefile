@@ -36,7 +36,10 @@ rule ".beam" => ["%{tests_ebin,tests}X.erl"] do |t|
 end
 
 desc "compile the current sources"
-task :compile => ['ebin'] + OBJ 
+task :compile => ['ebin'] + OBJ do
+    sh "cp src/*.app #{BIN}/"
+    sh "cp src/*.rel #{BIN}/"
+end
 
 desc "compile test sources"
 task :compile_tests => ['tests_ebin'] + TEST_OBJ

@@ -1,0 +1,9 @@
+{release,
+    {"qerl_rel", "A"},
+    {erts, "5.3"},
+    [{kernel, "2.14.2"},
+     {stdlib, "1.17.2"},
+     {sasl, "2.1.9.2"},
+     {qerl_application, "0.1"}]
+}.
+
