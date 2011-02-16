@@ -14,12 +14,9 @@ gen_session() -> gen_server:call(whereis(?MODULE), {generate,session}).
 get_sessions() -> gen_server:call(whereis(?MODULE), {get,sessions}).
 delete_session(SessionId) -> gen_server:call(whereis(?MODULE), {delete,session,SessionId}).
 
-remove_element(_,[],Accumulator) -> Accumulator;
-remove_element(Element,[H|T],Accumulator) ->
-  case Element =:= H of
-    true -> remove_element(Element,T,Accumulator);
-    _ -> remove_element(Element,T,[H|Accumulator])
-  end.
+remove_session(_,[],Sessions) -> lists:reverse(Sessions);
+remove_session(SessionId,[H|T],Sessions) when SessionId =:= H -> remove_session(SessionId,T,Sessions);
+remove_session(SessionId,[H|T],Sessions) -> remove_session(SessionId,T,[H|Sessions]).
 
 %%
 %% Callback functions
@@ -33,7 +30,7 @@ handle_call({generate,session},_From,State) ->
   {reply,SessionId,State#session_state{active_sessions = ActiveSessions, last_session_index = LastSessionIndex}};
 handle_call({delete,session,Id},_From,State) ->
   ActiveSessions = State#session_state.active_sessions,
-  {reply,ok,State#session_state{active_sessions = remove_element(Id,ActiveSessions,[])}};
+  {reply,ok,State#session_state{active_sessions = remove_session(Id,ActiveSessions,[])}};
 handle_call({get,sessions},_From,State) -> {reply,State,State};
 handle_call(_Request,_From,State) -> {noreply,State}.
 
