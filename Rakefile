@@ -22,7 +22,10 @@ namespace :erlang do
 end
 
 desc "default set to 'compile'"
-task :default => [:compile]
+task :default => [:compile] do
+    sh "cp src/*.app #{BIN}/"
+    sh "cp src/*.rel #{BIN}/"
+end
 
 desc "start the erlang application"
 task :start => ['erlang:run']
@@ -36,10 +39,7 @@ rule ".beam" => ["%{tests_ebin,tests}X.erl"] do |t|
 end
 
 desc "compile the current sources"
-task :compile => ['ebin'] + OBJ do
-    sh "cp src/*.app #{BIN}/"
-    sh "cp src/*.rel #{BIN}/"
-end
+task :compile => ['ebin'] + OBJ
 
 desc "compile test sources"
 task :compile_tests => ['tests_ebin'] + TEST_OBJ

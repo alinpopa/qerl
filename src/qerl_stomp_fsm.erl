@@ -2,19 +2,17 @@
 -behaviour(gen_fsm).
 
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
--export([start/1, start_link/1, stop/1, process/2]).
+-export([start_link/1, stop/1, process/2]).
 -export(['READY'/2, 'CONNECTED'/2]).
 
--record(state,{parent}).
-
-start(Args) -> gen_fsm:start(?MODULE, Args, []).
+-record(state,{parent,current_session}).
 
 start_link(Args) -> gen_fsm:start_link(?MODULE, Args, []).
 
 init(Args) ->
     [Parent] = Args,
     gen_server:cast(Parent,{msg_from_fsm}),
-    {ok, 'READY', Args}.
+    {ok, 'READY', #state{parent=Parent}}.
 
 process(FsmPid, Else) ->
     gen_fsm:send_event(FsmPid,Else),
@@ -26,9 +24,9 @@ process(FsmPid, Else) ->
 'READY'({connect,{headers,Headers}}, StateData) ->
     trace("CONNECT"),
     io:format("Headers: ~p~n",[Headers]),
-    [ParentListener] = StateData,
-    send_to_client(ParentListener,"CONNECTED\nsession:TEST123"),
-    {next_state, 'CONNECTED', StateData};
+    SessionId = qerl_session_manager:gen_session(),
+    send_to_client(StateData#state.parent,"CONNECTED\nsession:" ++ SessionId),
+    {next_state, 'CONNECTED', StateData#state{current_session = SessionId}};
 'READY'(Event, StateData) ->
     trace(Event),
     [ParentListener] = StateData,
@@ -45,9 +43,9 @@ process(FsmPid, Else) ->
     {next_state, 'CONNECTED', StateData};
 'CONNECTED'({disconnect,{headers,Headers}},StateData) ->
     trace("DISCONNECT"),
+    trace(StateData),
     io:format("Headers: ~p~n",[Headers]),
-    [Parent] = StateData,
-    qerl_conn_listener:stop(Parent),
+    qerl_conn_listener:stop(StateData#state.parent),
     {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
     trace(Event),

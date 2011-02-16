@@ -17,7 +17,14 @@ init([]) ->
             permanent,
             brutal_kill,
             worker,
-            [qerl_conn_listener]
+            []
+        },
+        {qerl_session_manager,
+            {qerl_session_manager, start_link, [7000]},
+            permanent,
+            brutal_kill,
+            worker,
+            []
         }
     ],
     {ok,{SupervisorFlags,ChildSpecs}}.
