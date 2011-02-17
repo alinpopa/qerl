@@ -77,6 +77,7 @@ to_list_body(BinBody) ->
     ListBody = binary:bin_to_list(BinBody),
     lists:takewhile(fun(X) -> X =/= 0 end,ListBody).
 
+drop(_,<<>>) -> <<>>;
 drop(What,Bin) when is_binary(Bin) ->
     case What of
         cr -> replace(Bin,<<?CR>>,<<>>,[global]);
