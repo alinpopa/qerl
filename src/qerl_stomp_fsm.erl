@@ -7,12 +7,10 @@
 
 -record(state,{parent,current_session}).
 
+%%
+%% API functions
+%%
 start_link(Args) -> gen_fsm:start_link(?MODULE, Args, []).
-
-init(Args) ->
-    [Parent] = Args,
-    gen_server:cast(Parent,{msg_from_fsm}),
-    {ok, 'READY', #state{parent=Parent}}.
 
 process(FsmPid, Else) ->
     gen_fsm:send_event(FsmPid,Else),
@@ -28,8 +26,7 @@ process(FsmPid, Else) ->
     send_to_client(StateData#state.parent,"CONNECTED\nsession:" ++ SessionId),
     {next_state, 'CONNECTED', StateData#state{current_session = SessionId}};
 'READY'(Event, StateData) ->
-    trace(Event),
-    [ParentListener] = StateData,
+    ParentListener = StateData#state.parent,
     send_to_client(ParentListener,"ERROR\nNot connected"),
     {next_state, 'READY', StateData}.
 
@@ -52,13 +49,19 @@ process(FsmPid, Else) ->
     {next_state, 'CONNECTED', StateData}.
 
 stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
+trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
+send_to_client(Parent,Msg) -> qerl_conn_listener:send_to_client(Parent,Msg).
+
+%%
+%% Callback functions
+%%
+init(Args) ->
+    [Parent] = Args,
+    {ok, 'READY', #state{parent=Parent}}.
 
 handle_event(_Event, _StateName, StateData) -> {stop, unimplemented, StateData}.
 handle_sync_event(_Event, _From, _StateName, StateData) -> {stop, unimplemented, StateData}.
 handle_info(_Info, _StateName, StateData) -> {stop, unimplemented, StateData}.
 terminate(_Reason, _StateName, _StateData) -> ok.
 code_change(_OldVsn, StateName, StateData, _Extra) -> {ok, StateName, StateData}.
-
-trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
-send_to_client(Parent,Msg) -> qerl_conn_listener:send_to_client(Parent,Msg).
 

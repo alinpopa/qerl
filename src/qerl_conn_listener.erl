@@ -1,17 +1,25 @@
 -module(qerl_conn_listener).
 -behaviour(gen_server).
 
--compile(export_all).
+-export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
+-export([start_link/2,stop/1,send_to_client/2]).
 
 -record(conn_state,{client_socket,data = <<>>,frames = [],fsm}).
 
+%%
+%% API functions
+%%
 start_link(ConnMngModule,LSocket) -> gen_server:start_link(?MODULE,[ConnMngModule,LSocket],[]).
 
 stop(Pid) -> gen_server:cast(Pid,{close}).
 send_to_client(Pid,Msg) -> gen_server:cast(Pid, {send_to_client,Msg}).
 
+trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
+
+%%
+%% Callback functions
+%%
 init([ConnMngModule,LSocket]) ->
-    process_flag(trap_exit,true),
     gen_server:cast(self(), {listen,ConnMngModule,LSocket}),
     {ok,[]}.
 
@@ -29,8 +37,7 @@ handle_cast({close},State) ->
 handle_cast({send_to_client,MsgToClient},State) ->
     gen_tcp:send(State#conn_state.client_socket,[MsgToClient ++ [10,10,0]]),
     {noreply,State};
-handle_cast(Msg,State) ->
-    {noreply,State}.
+handle_cast(Msg,State) -> {noreply,State}.
 
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
@@ -54,6 +61,4 @@ handle_info(Info,State) ->
 
 terminate(_Reason,State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
-
-trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 
