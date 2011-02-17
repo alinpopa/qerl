@@ -17,18 +17,21 @@ process(FsmPid, Else) ->
     ok.
 
 'READY'({stop}, StateData) ->
-    trace("STOP"),
-    {stop, normal, StateData};
+  trace("STOP"),
+  {stop, normal, StateData};
 'READY'({connect,{headers,Headers}}, StateData) ->
-    trace("CONNECT"),
-    io:format("Headers: ~p~n",[Headers]),
-    SessionId = qerl_session_manager:gen_session(),
-    send_to_client(StateData#state.parent,"CONNECTED\nsession:" ++ SessionId),
-    {next_state, 'CONNECTED', StateData#state{current_session = SessionId}};
+  trace("CONNECT"),
+  io:format("Headers: ~p~n",[Headers]),
+  SessionId = qerl_session_manager:gen_session(),
+  send_to_client(StateData#state.parent,"CONNECTED\nsession:" ++ SessionId),
+  {next_state, 'CONNECTED', StateData#state{current_session = SessionId}};
+'READY'({unknown_command,UnknownCommand}, StateData) ->
+  send_to_client(StateData#state.parent,"ERROR\nmessage:Unknown STOMP action: " ++ UnknownCommand),
+  {next_state, 'READY', StateData};
 'READY'(Event, StateData) ->
-    ParentListener = StateData#state.parent,
-    send_to_client(ParentListener,"ERROR\nNot connected"),
-    {next_state, 'READY', StateData}.
+  ParentListener = StateData#state.parent,
+  send_to_client(ParentListener,"ERROR\nNot connected"),
+  {next_state, 'READY', StateData}.
 
 'CONNECTED'({stop},StateData) ->
     trace("STOP"),

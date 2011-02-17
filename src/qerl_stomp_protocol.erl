@@ -37,7 +37,9 @@ parse_msg([<<"COMMIT">>,Frame]) -> {commit,{headers,get_headers(Frame)}};
 parse_msg([<<"ABORT">>,Frame]) -> {abort,{headers,get_headers(Frame)}};
 parse_msg([<<"ACK">>,Frame]) -> {ack,{headers,get_headers(Frame)}};
 parse_msg([<<"DISCONNECT">>,Frame]) -> {disconnect,{headers,get_headers(Frame)}};
-parse_msg(Bin) -> {something_else,Bin}.
+parse_msg([UnknownBinCommand,_]) ->
+  UnknownCommand = erlang:binary_to_list(UnknownBinCommand),
+  {unknown_command,UnknownCommand}.
 
 get_body(Frame) ->
     case has_headers(Frame) of
