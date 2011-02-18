@@ -16,25 +16,25 @@ start_link(ListeningModule,Port,ListenersSize) ->
 detach() -> gen_server:call(?MODULE,detach).
 
 spawn_listeners(_,_,0) -> ok;
-spawn_listeners(LModule,LSocket,LSize) ->
-    LModule:start_link(?MODULE,LSocket),
-    spawn_listeners(LModule,LSocket,LSize-1).
+spawn_listeners(ListeningModule,ListeningSocket,ListenersSize) ->
+    ListeningModule:start_link(?MODULE,ListeningSocket),
+    spawn_listeners(ListeningModule,ListeningSocket,ListenersSize-1).
 
 %%
 %% Callback functions
 %%
-init([LModule,Port,LSize]) ->
+init([ListeningModule,Port,ListenersSize]) ->
     case gen_tcp:listen(Port,?TCP_OPTIONS) of
-        {ok,LSocket} ->
-            ok = spawn_listeners(LModule,LSocket,LSize),
-            io:format(" >> Server started successful on port: ~p, listeners size: ~p~n",[Port,LSize]),
-            {ok,#server_state{module=LModule,socket=LSocket,listeners_size=LSize}};
+        {ok,ListeningSocket} ->
+            ok = spawn_listeners(ListeningModule,ListeningSocket,ListenersSize),
+            io:format(" >> Server started successful on port: ~p, listeners size: ~p~n",[Port,ListenersSize]),
+            {ok,#server_state{module=ListeningModule,socket=ListeningSocket,listeners_size=ListenersSize}};
         {error,Reason} ->
             {stop,Reason}
     end.
 
-handle_call(detach,{From,_Ref}, State = #server_state{module=LModule,socket=LSocket}) ->
-    ok = spawn_listeners(LModule,LSocket,1),
+handle_call(detach,{From,_Ref}, State = #server_state{module=ListeningModule,socket=ListeningSocket}) ->
+    ok = spawn_listeners(ListeningModule,ListeningSocket,1),
     unlink(From),
     {reply,ok,State};
 handle_call(stop,_From,State) -> {stop,normal,State};
