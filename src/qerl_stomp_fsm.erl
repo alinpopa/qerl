@@ -13,8 +13,8 @@
 start_link(Args) -> gen_fsm:start_link(?MODULE, Args, []).
 
 process(FsmPid, Else) ->
-    gen_fsm:send_event(FsmPid,Else),
-    ok.
+  gen_fsm:send_event(FsmPid,Else),
+  ok.
 
 'READY'({stop}, StateData) ->
   trace("STOP"),
@@ -34,22 +34,22 @@ process(FsmPid, Else) ->
   {next_state, 'READY', StateData}.
 
 'CONNECTED'({stop},StateData) ->
-    trace("STOP"),
-    {stop, normal, StateData};
+  trace("STOP"),
+  {stop, normal, StateData};
 'CONNECTED'({send,{headers,Headers},{body,Body}},StateData) ->
-    trace("SEND"),
-    io:format("Headers: ~p~n",[Headers]),
-    io:format("Body: ~p~n",[Body]),
-    {next_state, 'CONNECTED', StateData};
+  trace("SEND"),
+  io:format("Headers: ~p~n",[Headers]),
+  io:format("Body: ~p~n",[Body]),
+  {next_state, 'CONNECTED', StateData};
 'CONNECTED'({disconnect,{headers,Headers}},StateData) ->
-    trace("DISCONNECT"),
-    trace(StateData),
-    io:format("Headers: ~p~n",[Headers]),
-    qerl_conn_listener:stop(StateData#state.parent),
-    {stop, normal, StateData};
+  trace("DISCONNECT"),
+  trace(StateData),
+  io:format("Headers: ~p~n",[Headers]),
+  qerl_conn_listener:stop(StateData#state.parent),
+  {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
-    trace(Event),
-    {next_state, 'CONNECTED', StateData}.
+  trace(Event),
+  {next_state, 'CONNECTED', StateData}.
 
 stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
 trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
@@ -59,8 +59,8 @@ send_to_client(Parent,Msg) -> qerl_conn_listener:send_to_client(Parent,Msg).
 %% Callback functions
 %%
 init(Args) ->
-    [Parent] = Args,
-    {ok, 'READY', #state{parent=Parent}}.
+  [Parent] = Args,
+  {ok, 'READY', #state{parent=Parent}}.
 
 handle_event(_Event, _StateName, StateData) -> {stop, unimplemented, StateData}.
 handle_sync_event(_Event, _From, _StateName, StateData) -> {stop, unimplemented, StateData}.
