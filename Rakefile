@@ -22,7 +22,7 @@ namespace :erlang do
 end
 
 desc "default set to 'compile'"
-task :default => [:compile] do
+task :default => [:test] do
     sh "cp src/*.app #{BIN}/"
     sh "cp src/*.rel #{BIN}/"
 end
