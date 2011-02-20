@@ -1,5 +1,5 @@
 -module(qerl_stomp_protocol).
--export([is_eof/1, parse/1, parse/1,drop/2]).
+-export([is_eof/1,parse/1,drop/2]).
 
 -import(binary, [bin_to_list/1, match/2, replace/4, split/2, split/3]).
 
