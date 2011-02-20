@@ -13,7 +13,7 @@ init([]) ->
   SupervisorFlags = {RestartStrategy, MaxRestarts, MaxTimeBetRestarts},
   ChildSpecs = [
     {qerl_conn_manager,
-      {qerl_conn_manager, start_link, [qerl_conn_listener, 7000, 10]},
+      {qerl_conn_manager, start_link, [7000, 10]},
       permanent,
       brutal_kill,
       worker,

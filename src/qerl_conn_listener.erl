@@ -2,14 +2,18 @@
 -behaviour(gen_server).
 
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
--export([start_link/2,stop/1,send_to_client/2]).
+-export([start_link/1,stop/1,send_to_client/2]).
 
 -record(conn_state,{client_socket,data = <<>>,frames = [],fsm}).
+
+-define(LISTENER_MANAGER,qerl_conn_manager).
+-define(STOMP,qerl_stomp_protocol).
+-define(STOMP_FSM,qerl_stomp_fsm).
 
 %%
 %% API functions
 %%
-start_link(ConnMngModule,LSocket) -> gen_server:start_link(?MODULE,[ConnMngModule,LSocket],[]).
+start_link(ListeningSocket) -> gen_server:start_link(?MODULE,[ListeningSocket],[]).
 
 stop(Pid) -> gen_server:cast(Pid,{close}).
 send_to_client(Pid,Msg) -> gen_server:cast(Pid, {send_to_client,Msg}).
@@ -19,17 +23,17 @@ trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 %%
 %% Callback functions
 %%
-init([ConnMngModule,LSocket]) ->
-    gen_server:cast(self(), {listen,ConnMngModule,LSocket}),
+init([ListeningSocket]) ->
+    gen_server:cast(self(), {listen,ListeningSocket}),
     {ok,[]}.
 
-handle_cast({listen,ConnMngModule,LSocket}, []) ->
-    {ok,ClientSocket} = gen_tcp:accept(LSocket),
+handle_cast({listen,ListeningSocket}, []) ->
+    {ok,ClientSocket} = gen_tcp:accept(ListeningSocket),
     io:format(" -> client connected~n"),
-    {ok,FsmPid} = qerl_stomp_fsm:start_link([self()]),
+    {ok,FsmPid} = ?STOMP_FSM:start_link([self()]),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
-    ConnMngModule:detach(),
+    ?LISTENER_MANAGER:detach(),
     {noreply,#conn_state{client_socket = ClientSocket,data = <<>>,frames = [],fsm = FsmPid}};
 handle_cast({close},State) ->
     gen_tcp:close(State#conn_state.client_socket),
@@ -45,16 +49,16 @@ handle_info({tcp,ClientSocket,Bin},State) ->
     BinData = State#conn_state.data,
     NewBinData = <<BinData/binary, Bin/binary>>,
     inet:setopts(State#conn_state.client_socket, [{active, once}]),
-    case qerl_stomp_protocol:is_eof(NewBinData) of
+    case ?STOMP:is_eof(NewBinData) of
         true ->
-            Parsed = qerl_stomp_protocol:parse(NewBinData),
-            qerl_stomp_fsm:process(State#conn_state.fsm, Parsed),
+            Parsed = ?STOMP:parse(NewBinData),
+            ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
             {noreply,State#conn_state{data = <<>>}};
         _ ->
-            {noreply,State#conn_state{data = qerl_stomp_protocol:drop(null,NewBinData)}}
+            {noreply,State#conn_state{data = ?STOMP:drop(null,NewBinData)}}
     end;
 handle_info({tcp_closed,_ClientSocket},State) ->
-    qerl_stomp_fsm:stop(State#conn_state.fsm),
+    ?STOMP_FSM:stop(State#conn_state.fsm),
     {stop,normal,State};
 handle_info(Info,State) ->
     {noreply,State}.
