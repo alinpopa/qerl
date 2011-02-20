@@ -6,7 +6,10 @@
 -export(['READY'/2, 'CONNECTED'/2]).
 
 -record(state,{parent,current_session}).
+
+-define(CONN_LISTENER,qerl_conn_listener).
 -define(QSERVER,qerl_memory_queue).
+-define(SESSION_MANAGER,qerl_session_manager).
 
 %%
 %% API functions
@@ -23,7 +26,7 @@ process(FsmPid, Else) ->
 'READY'({connect,{headers,Headers}}, StateData) ->
   trace("CONNECT"),
   io:format("Headers: ~p~n",[Headers]),
-  SessionId = qerl_session_manager:gen_session(),
+  SessionId = ?SESSION_MANAGER:gen_session(),
   send_to_client(StateData#state.parent,"CONNECTED\nsession:" ++ SessionId),
   {next_state, 'CONNECTED', StateData#state{current_session = SessionId}};
 'READY'({unknown_command,UnknownCommand}, StateData) ->
@@ -57,7 +60,7 @@ process(FsmPid, Else) ->
   trace("DISCONNECT"),
   trace(StateData),
   io:format("Headers: ~p~n",[Headers]),
-  qerl_conn_listener:stop(StateData#state.parent),
+  ?CONN_LISTENER:stop(StateData#state.parent),
   {stop, normal, StateData};
 'CONNECTED'(Event,StateData) ->
   trace(Event),
@@ -65,7 +68,7 @@ process(FsmPid, Else) ->
 
 stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
 trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
-send_to_client(Parent,Msg) -> qerl_conn_listener:send_to_client(Parent,Msg).
+send_to_client(Parent,Msg) -> ?CONN_LISTENER:send_to_client(Parent,Msg).
 
 format_queue_info([]) -> "QUEUE is empty";
 format_queue_info(QInfo) -> format_queue_info(QInfo,[]).
