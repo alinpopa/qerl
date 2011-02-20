@@ -1,47 +1,39 @@
 -module(qerl_memory_queue).
+-behaviour(gen_server).
 -behaviour(qerl_queue).
 
--export([init/0,produce/1,consume/0,stop/0]).
+-export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
+-export([start_link/0,produce/1,consume/0,info/0]).
 
-init() ->
-    Queue = queue:new(),
-    register(?MODULE,spawn(fun() -> loop(Queue) end)).
+-record(state,{queue}).
 
-stop() ->
-    Pid = whereis(?MODULE),
-    exit(Pid,kill).
+%%
+%% API functions
+%%
+start_link() -> gen_server:start_link({local,?MODULE},?MODULE,[],[]).
+produce(Message) -> gen_server:call(?MODULE,{produce,Message}).
+consume() -> gen_server:call(?MODULE,{consume}).
+info() -> gen_server:call(?MODULE,{info}).
 
-loop(Q) ->
-    receive
-        {Producer,produce,Msg} ->
-            NewQ = queue:in(Msg,Q),
-            Producer ! {produce,ok},
-            loop(NewQ);
-        {Consumer,consume} ->
-            case queue:out(Q) of
-                {{value,Msg},NewQ} ->
-                    Consumer ! {consume,Msg},
-                    loop(NewQ);
-                {empty,_} ->
-                    Consumer ! {err, "no message"},
-                    loop(Q)
-            end;
-        _Else -> loop(Q)
-    end.
+%%
+%% Callback functions
+%%
+init([]) -> {ok, #state{queue = queue:new()}}.
 
-produce(Msg) ->
-    ?MODULE ! {self(),produce,Msg},
-    receive
-        {produce,ok} -> io:format("Message produced~n");
-        Else -> io:format("ERROR producing message: ~p~n",[Else])
-    end.
+handle_call({produce,Message},_From,State) ->
+  NewQ = queue:in(Message,State#state.queue),
+  {reply,ok,State#state{queue = NewQ}};
+handle_call({consume},_From,State) ->
+  case queue:out(State#state.queue) of
+    {{value,Message},NewQ} -> {reply,{consume,Message},State#state{queue = NewQ}};
+    {empty,_} -> {reply,{error,"No message"},State}
+  end;
+handle_call({info},_From,State) ->
+  {reply,queue:to_list(State#state.queue),State};
+handle_call(_Request,_From,State) -> {noreply,State}.
 
-consume() ->
-    ?MODULE ! {self(),consume},
-    receive
-        {consume,Msg} -> io:format("Got msg from queue: ~p~n",[Msg]);
-        {err,Msg} -> io:format("Queue is empty, no message to consume: ~p~n",[Msg]);
-        Else ->
-            io:format("ERROR consuming message: ~p~n",[Else])
-    end.
+handle_cast(_Request,State) -> {noreply,State}.
+handle_info(_Info,State) -> {noreply,State}.
+terminate(_Reason,_State) -> ok.
+code_change(_OldVsn, State, _Extra) -> {ok,State}.
 

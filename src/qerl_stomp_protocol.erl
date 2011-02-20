@@ -37,6 +37,8 @@ parse_msg([<<"COMMIT">>,Frame]) -> {commit,{headers,get_headers(Frame)}};
 parse_msg([<<"ABORT">>,Frame]) -> {abort,{headers,get_headers(Frame)}};
 parse_msg([<<"ACK">>,Frame]) -> {ack,{headers,get_headers(Frame)}};
 parse_msg([<<"DISCONNECT">>,Frame]) -> {disconnect,{headers,get_headers(Frame)}};
+%% Debug/helper commands, that are not part of STOMP specs.
+parse_msg([<<"QINFO">>,_]) -> {queue_info};
 parse_msg([UnknownBinCommand,_]) ->
   UnknownCommand = erlang:binary_to_list(UnknownBinCommand),
   {unknown_command,UnknownCommand}.
