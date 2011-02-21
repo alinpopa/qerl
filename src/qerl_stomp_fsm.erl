@@ -71,10 +71,8 @@ trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 send_to_client(Parent,Msg) -> ?CONN_LISTENER:send_to_client(Parent,Msg).
 
 format_queue_info([]) -> "QUEUE is empty";
-format_queue_info(QInfo) -> format_queue_info(QInfo,[]).
-
-format_queue_info([],Acc) -> Acc;
-format_queue_info([H|T],Acc) -> format_queue_info(T,Acc ++ "{Message: " ++ H ++ "}").
+format_queue_info(Messages) ->
+  lists:flatten(lists:map(fun(Message) -> "{Message: " ++ Message ++ "}" end, Messages)).
 
 %%
 %% Callback functions
