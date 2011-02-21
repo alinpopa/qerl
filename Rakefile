@@ -17,7 +17,7 @@ directory TEST_BIN
 namespace :erlang do
     desc "starting qerl"
     task :run => [:compile] do
-        sh("erl -noshell -pa #{BIN} -s qerl_example_server start")
+        sh("erl -boot start_sasl -noshell -pa #{BIN} -s qerl_example_server start")
     end
 end
 

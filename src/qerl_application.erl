@@ -4,7 +4,11 @@
 
 start(_Type, StartArgs) ->
     io:format("STOMP Q Broker started~n"),
-    qerl_supervisor:start_link(StartArgs).
+    case qerl_supervisor:start_link(StartArgs) of
+      {ok, Pid} -> {ok, Pid};
+      Other -> {error, Other}
+    end.
 stop(_State) -> ok.
-go() -> application:start(qerl_application).
+go() ->
+  application:start(qerl_application).
 

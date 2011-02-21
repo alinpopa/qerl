@@ -29,7 +29,7 @@ init([Port,ListenersSize]) ->
     case gen_tcp:listen(Port,?TCP_OPTIONS) of
         {ok,ListeningSocket} ->
             ok = spawn_listeners(ListeningSocket,ListenersSize),
-            io:format(" >> Server started successful on port: ~p, listeners size: ~p~n",[Port,ListenersSize]),
+            error_logger:info_msg("Server started successful on port: ~p, listeners size: ~p~n",[Port,ListenersSize]),
             {ok,#server_state{socket=ListeningSocket,listeners_size=ListenersSize}};
         {error,Reason} ->
             {stop,Reason}
