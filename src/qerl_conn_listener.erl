@@ -10,6 +10,7 @@
 -define(STOMP,qerl_stomp_protocol).
 -define(STOMP_FSM,qerl_stomp_fsm).
 -define(STOMP_PARSER,qerl_stomp_frame_parser).
+-define(TCP_FILTERS,qerl_tcp_filters).
 
 %%
 %% API functions
@@ -48,7 +49,7 @@ handle_cast(Msg,State) -> {noreply,State}.
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
 handle_info({tcp,ClientSocket,Bin},State) ->
-  ParseReply = ?STOMP_PARSER:parse(State#conn_state.parser,Bin),
+  ParseReply = ?STOMP_PARSER:parse(State#conn_state.parser,?TCP_FILTERS:apply(Bin)),
   io:format("Got reply from parser: ~p~n",[ParseReply]),
     BinData = State#conn_state.data,
     NewBinData = <<BinData/binary, Bin/binary>>,
