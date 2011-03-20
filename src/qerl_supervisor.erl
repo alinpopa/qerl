@@ -32,6 +32,13 @@ init([]) ->
       brutal_kill,
       worker,
       []
+    },
+    {qerl_tcp_filters,
+      {qerl_tcp_filters, start_link, []},
+      permanent,
+      brutal_kill,
+      worker,
+      []
     }
   ],
   {ok,{SupervisorFlags,ChildSpecs}}.
