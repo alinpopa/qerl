@@ -84,6 +84,7 @@ init(Args) ->
 handle_event(_Event, _StateName, StateData) -> {stop, unimplemented, StateData}.
 handle_sync_event(_Event, _From, _StateName, StateData) -> {stop, unimplemented, StateData}.
 handle_info(_Info, _StateName, StateData) -> {stop, unimplemented, StateData}.
-terminate(_Reason, _StateName, _StateData) -> ok.
+terminate(_Reason, _StateName, _StateData) ->
+  ok.
 code_change(_OldVsn, StateName, StateData, _Extra) -> {ok, StateName, StateData}.
 

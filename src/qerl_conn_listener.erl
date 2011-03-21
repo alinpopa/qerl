@@ -4,7 +4,7 @@
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
 -export([start_link/1,stop/1,send_to_client/2]).
 
--record(conn_state,{client_socket,data = <<>>,frames = [],fsm,parser}).
+-record(conn_state, {listening_socket, client_socket, data = <<>>, frames = [], fsm, parser, tcp_filters}).
 
 -define(LISTENER_MANAGER,qerl_conn_manager).
 -define(STOMP,qerl_stomp_protocol).
@@ -26,18 +26,19 @@ trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 %% Callback functions
 %%
 init([ListeningSocket]) ->
-    gen_server:cast(self(), {listen,ListeningSocket}),
-    {ok,[]}.
-
-handle_cast({listen,ListeningSocket}, []) ->
-    {ok,ClientSocket} = gen_tcp:accept(ListeningSocket),
-    io:format(" -> client connected~n"),
     {ok,FsmPid} = ?STOMP_FSM:start_link([self()]),
     {ok,ParserPid} = ?STOMP_PARSER:start_link(),
+    {ok,TcpFilters} = ?TCP_FILTERS:start_link(),
+    gen_server:cast(self(), {listen}),
+    {ok,#conn_state{listening_socket = ListeningSocket, fsm = FsmPid, parser = ParserPid, tcp_filters = TcpFilters}}.
+
+handle_cast({listen}, State) ->
+    {ok,ClientSocket} = gen_tcp:accept(State#conn_state.listening_socket),
+    io:format(" -> client connected (current no. of processes: ~p)~n",[length(processes())]),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
     ?LISTENER_MANAGER:detach(),
-    {noreply,#conn_state{client_socket = ClientSocket,data = <<>>,frames = [],fsm = FsmPid,parser=ParserPid}};
+    {noreply,State#conn_state{client_socket = ClientSocket, data = <<>>, frames = []}};
 handle_cast({close},State) ->
     gen_tcp:close(State#conn_state.client_socket),
     {stop,normal,State};
@@ -49,7 +50,9 @@ handle_cast(Msg,State) -> {noreply,State}.
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
 handle_info({tcp,ClientSocket,Bin},State) ->
-  ParseReply = ?STOMP_PARSER:parse(State#conn_state.parser,?TCP_FILTERS:apply(Bin)),
+  Parser = State#conn_state.parser,
+  Filters = State#conn_state.tcp_filters,
+  ParseReply = ?STOMP_PARSER:parse(Parser,?TCP_FILTERS:apply(Filters,Bin)),
   io:format("Got reply from parser: ~p~n",[ParseReply]),
     BinData = State#conn_state.data,
     NewBinData = <<BinData/binary, Bin/binary>>,
@@ -68,6 +71,9 @@ handle_info({tcp_closed,_ClientSocket},State) ->
 handle_info(Info,State) ->
     {noreply,State}.
 
-terminate(_Reason,State) -> ok.
+terminate(_Reason,State) ->
+  ?TCP_FILTERS:stop(State#conn_state.tcp_filters),
+  ?STOMP_PARSER:stop(State#conn_state.parser),
+  ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
 
