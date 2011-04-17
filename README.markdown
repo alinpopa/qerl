@@ -8,6 +8,7 @@ Requirements:
 
 Install by running:  
     rake
+
 Start app by running:  
     rake start
 
