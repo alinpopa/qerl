@@ -3,8 +3,8 @@ qerl is an Erlang MQ Broker based on STOMP
 (NOTE: THIS PRODUCT IS STILL IN VERY EARLY DEVELOPMENT PHASE)
 
 Requirements:  
-    - rake
-    - erlang
+  - rake  
+  - erlang  
 
 Install by running:  
 
