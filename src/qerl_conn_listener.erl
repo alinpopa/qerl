@@ -4,6 +4,8 @@
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
 -export([start_link/1,stop/1,send_to_client/2]).
 
+-import(qerl_stomp_utils, [drop/2]).
+
 -record(conn_state, {listening_socket, client_socket, data = <<>>, frames = [], fsm, parser, tcp_filters}).
 
 -define(LISTENER_MANAGER,qerl_conn_manager).
@@ -54,17 +56,17 @@ handle_info({tcp,ClientSocket,Bin},State) ->
   Filters = State#conn_state.tcp_filters,
   ParseReply = ?STOMP_PARSER:parse(Parser,?TCP_FILTERS:apply(Filters,Bin)),
   io:format("Got reply from parser: ~p~n",[ParseReply]),
-    BinData = State#conn_state.data,
-    NewBinData = <<BinData/binary, Bin/binary>>,
-    inet:setopts(State#conn_state.client_socket, [{active, once}]),
-    case ?STOMP:is_eof(NewBinData) of
-        true ->
-            Parsed = ?STOMP:parse(NewBinData),
-            ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
-            {noreply,State#conn_state{data = <<>>}};
-        _ ->
-            {noreply,State#conn_state{data = ?STOMP:drop(null,NewBinData)}}
-    end;
+  BinData = State#conn_state.data,
+  NewBinData = <<BinData/binary, Bin/binary>>,
+  inet:setopts(State#conn_state.client_socket, [{active, once}]),
+  case ?STOMP:is_eof(NewBinData) of
+      true ->
+          Parsed = ?STOMP:parse(NewBinData),
+          ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
+          {noreply,State#conn_state{data = <<>>}};
+      _ ->
+          {noreply,State#conn_state{data = drop(null,NewBinData)}}
+  end;
 handle_info({tcp_closed,_ClientSocket},State) ->
     ?STOMP_FSM:stop(State#conn_state.fsm),
     {stop,normal,State};

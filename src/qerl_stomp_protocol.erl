@@ -1,10 +1,10 @@
 -module(qerl_stomp_protocol).
--export([is_eof/1,parse/1,drop/2]).
+-export([is_eof/1,parse/1]).
 
 -import(binary, [bin_to_list/1, match/2, replace/4, split/2, split/3]).
+-import(qerl_stomp_utils, [drop/2]).
 
 -define(LF,10).
--define(CR,13).
 -define(NULL,0).
 
 is_eof(BinData) ->
@@ -80,15 +80,6 @@ parse_body_without_headers(BinData) -> to_list_body(BinData).
 to_list_body(BinBody) ->
     ListBody = binary:bin_to_list(BinBody),
     lists:takewhile(fun(X) -> X =/= 0 end,ListBody).
-
-drop(_,<<>>) -> <<>>;
-drop(What,Bin) when is_binary(Bin) ->
-    case What of
-        cr -> replace(Bin,<<?CR>>,<<>>,[global]);
-        null -> replace(Bin,<<?NULL>>,<<>>,[global]);
-        _ -> Bin
-    end;
-drop(_What,_Bin) -> <<>>.
 
 data_without_null_and_lf(BinData) ->
     [H|_] = split(BinData,<<?NULL,?LF>>,[]),

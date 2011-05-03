@@ -3,8 +3,7 @@
 -export([start_link/0,apply/2,stop/1]).
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
 
--define(CR,13).
--define(NULL,0).
+-import(qerl_stomp_utils, [drop/2]).
 
 -define(FILTERS,[
   fun(Data) -> drop(cr,Data) end
@@ -34,13 +33,4 @@ handle_cast(_Request,State) ->
 handle_info(_Info,State) -> {noreply,State}.
 terminate(_Reason,_State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
-
-drop(_,<<>>) -> <<>>;
-drop(What,Bin) when is_binary(Bin) ->
-    case What of
-        cr -> binary:replace(Bin,<<?CR>>,<<>>,[global]);
-        null -> binary:replace(Bin,<<?NULL>>,<<>>,[global]);
-        _ -> Bin
-    end;
-drop(_What,_Bin) -> <<>>.
 
