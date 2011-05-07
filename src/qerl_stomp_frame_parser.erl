@@ -8,7 +8,7 @@
 -import(binary, [replace/4]).
 -import(qerl_stomp_utils, [drop/2]).
 
--record(state,{frames=[], uncomplete_data = <<>>}).
+-record(state,{frames=[], blank_line = false, current_lines=[], last_data = <<>>, uncomplete_frame = <<>>}).
 
 -define(NULL,0).
 
@@ -24,20 +24,23 @@ init([]) -> {ok, 'NEW', #state{}}.
 
 'NEW'({parse,Data}, _From, State) ->
   case drop_all(Data) of
-    <<>> -> {reply,{new,[]},'NEW',State};
+    <<>> ->
+      {reply,{new,[]},'NEW',State};
     _ ->
-      ExistingFrames = State#state.frames,
-      DataToProcess = drop(cr,Data),
-      {reply,{waiting,ExistingFrames},'WAITING',State#state{frames = [DataToProcess|ExistingFrames], uncomplete_data = Data}}
+      ExistingLines = State#state.current_lines,
+      {reply,{waiting,ExistingLines},'WAITING',State#state{current_lines = [Data], last_data = Data}}
   end.
 
 'WAITING'({parse,Data}, _From, State) ->
-  ExistingFrames = State#state.frames,
-  UncompleteData = State#state.uncomplete_data,
-  io:format("Uncomplete data: ~p~n",[UncompleteData]),
-  DataToProcess = drop(cr,Data),
-  {reply, {waiting, ExistingFrames}, 'WAITING',
-    State#state{frames = lists:reverse([DataToProcess|ExistingFrames]), uncomplete_data = <<UncompleteData/binary,Data/binary>>}
+  ExistingLines = State#state.current_lines,
+  LastData = State#state.last_data,
+  UncompleteFrame = State#state.uncomplete_frame,
+  io:format("Last data: ~p~n",[LastData]),
+  io:format("Parse data: ~p~n",[parse(Data)]),
+  CurrentLines = [Data|ExistingLines],
+  {reply, {waiting, CurrentLines}, 'WAITING',
+    State#state{current_lines = CurrentLines,
+                last_data = Data}
   }.
 
 handle_event(stop, _StateName, State) ->
@@ -50,7 +53,7 @@ handle_info(_Info, _StateName, StateData) -> {stop, unimplemented, StateData}.
 terminate(_Reason, _StateName, _StateData) -> ok.
 code_change(_OldVsn, StateName, StateData, _Extra) -> {ok, StateName, StateData}.
 
-%% Drop all bytes like CR, LF and NULL
+%% Drop all bytes like LF and NULL
 drop_all(<<>>) -> <<>>;
 drop_all(Bin) -> drop_all(Bin,[
       fun(X) -> drop(lf,X) end,
@@ -60,4 +63,11 @@ drop_all(<<>>,_FunctionsToApply) -> <<>>;
 drop_all(Bin, []) -> Bin;
 drop_all(Bin, [FunctionToApply|RestOfFunctionsToApply]) ->
   drop_all(FunctionToApply(Bin), RestOfFunctionsToApply).
+
+parse(<<>>) -> {<<>>,<<>>};
+parse(Data) ->
+  case binary:split(Data,<<?NULL>>,[trim]) of
+    [Element] -> {Element,<<>>};
+    [Element,Rest] -> {Element,Rest}
+  end.
 
