@@ -12,8 +12,8 @@ Install by running:
 
 Start app by running:  
 
-    rake start
+    rake run
 
 Customize tcp filters:  
-  - doing this by modify src/qerl_tcp_filters.erl (FILTERS macro).
+  - doing this by modify src/qerl\_tcp\_filters.erl (FILTERS macro).
 

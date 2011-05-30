@@ -3,14 +3,15 @@
 
 -export([init/1, handle_event/3, handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 -export([start_link/0,parse/2,stop/1]).
--export(['NEW'/3,'WAITING'/3]).
+-export(['READY'/3,'WAITING'/3]).
 
 -import(binary, [replace/4]).
 -import(qerl_stomp_utils, [drop/2]).
 
--record(state,{frames=[], blank_line = false, current_lines=[], last_data = <<>>, uncomplete_frame = <<>>}).
+-record(state,{frames=[], expect_eof = false, data = <<>>}).
 
 -define(NULL,0).
+-define(LF,10).
 
 start_link() -> gen_fsm:start_link(?MODULE, [], []).
 
@@ -20,28 +21,21 @@ parse(ParserPid,Data) ->
 stop(ParserPid) ->
   gen_fsm:send_all_state_event(ParserPid,stop).
 
-init([]) -> {ok, 'NEW', #state{}}.
+init([]) -> {ok, 'READY', #state{}}.
 
-'NEW'({parse,Data}, _From, State) ->
+'READY'({parse,Data}, _From, State) ->
   case drop_all(Data) of
     <<>> ->
-      {reply,{new,[]},'NEW',State};
+      {reply,{ready,[]},'READY',State};
     _ ->
-      ExistingLines = State#state.current_lines,
-      {reply,{waiting,ExistingLines},'WAITING',State#state{current_lines = [Data], last_data = Data}}
+      {reply,{waiting,Data},'WAITING',State#state{data = Data}}
   end.
 
 'WAITING'({parse,Data}, _From, State) ->
-  ExistingLines = State#state.current_lines,
-  LastData = State#state.last_data,
-  UncompleteFrame = State#state.uncomplete_frame,
-  io:format("Last data: ~p~n",[LastData]),
-  io:format("Parse data: ~p~n",[parse(Data)]),
-  CurrentLines = [Data|ExistingLines],
-  {reply, {waiting, CurrentLines}, 'WAITING',
-    State#state{current_lines = CurrentLines,
-                last_data = Data}
-  }.
+  ExistingData = State#state.data,
+  StateData = <<ExistingData/binary,Data/binary>>,
+  io:format("Parse state data: ~p~n",[parse(StateData)]),
+  {reply, {waiting, StateData}, 'WAITING', State#state{data = StateData}}.
 
 handle_event(stop, _StateName, State) ->
   {stop, normal, State};
@@ -64,10 +58,17 @@ drop_all(Bin, []) -> Bin;
 drop_all(Bin, [FunctionToApply|RestOfFunctionsToApply]) ->
   drop_all(FunctionToApply(Bin), RestOfFunctionsToApply).
 
-parse(<<>>) -> {<<>>,<<>>};
+parse(<<>>) -> {empty};
 parse(Data) ->
   case binary:split(Data,<<?NULL>>,[trim]) of
     [Element] -> {Element,<<>>};
+    [Element,<<?LF>>] -> {Element,<<>>};
     [Element,Rest] -> {Element,Rest}
   end.
+
+is_expect_eof(true,_) -> true;
+is_expect_eof(false,<<?LF>>) -> true;
+is_expect_eof(false,<<?NULL>>) -> true;
+is_expect_eof(false,<<?NULL,?LF>>) -> true;
+is_expect_eof(_,_) -> false.
 

@@ -28,7 +28,7 @@ task :default => [:test] do
 end
 
 desc "start the erlang application"
-task :start => ['erlang:run']
+task :run => ['erlang:run']
 
 rule ".beam" => ["%{ebin,src}X.erl"] do |t|
       sh "erlc -pa #{BIN} -W #{ERLC_FLAGS} -o #{BIN} #{t.source}"
