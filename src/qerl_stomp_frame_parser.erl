@@ -37,6 +37,7 @@ init([]) -> {ok, 'READY', #state{}}.
   IsExpectEof = State#state.expect_eof,
   io:format("Parse state data: ~p~n",[parse(StateData)]),
   io:format("Expect eof: ~p~n",[IsExpectEof]),
+  io:format("Is null: ~p~n",[is_null(Data)]),
   {reply, {waiting, StateData}, 'WAITING',
     State#state{data = StateData, expect_eof = is_expect_eof(IsExpectEof,Data)}
   }.
@@ -72,7 +73,13 @@ parse(Data) ->
 
 is_expect_eof(true,_) -> true;
 is_expect_eof(false,<<?LF>>) -> true;
-is_expect_eof(false,<<?NULL>>) -> true;
-is_expect_eof(false,<<?NULL,?LF>>) -> true;
+is_expect_eof(false,Data) -> is_null(Data);
 is_expect_eof(_,_) -> false.
+
+is_null(<<>>) -> false;
+is_null(Data) ->
+  case binary:match(Data,<<?NULL>>) of
+    nomatch -> false;
+    _ -> true
+  end.
 
