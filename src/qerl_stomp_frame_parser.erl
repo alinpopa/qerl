@@ -34,8 +34,12 @@ init([]) -> {ok, 'READY', #state{}}.
 'WAITING'({parse,Data}, _From, State) ->
   ExistingData = State#state.data,
   StateData = <<ExistingData/binary,Data/binary>>,
+  IsExpectEof = State#state.expect_eof,
   io:format("Parse state data: ~p~n",[parse(StateData)]),
-  {reply, {waiting, StateData}, 'WAITING', State#state{data = StateData}}.
+  io:format("Expect eof: ~p~n",[IsExpectEof]),
+  {reply, {waiting, StateData}, 'WAITING',
+    State#state{data = StateData, expect_eof = is_expect_eof(IsExpectEof,Data)}
+  }.
 
 handle_event(stop, _StateName, State) ->
   {stop, normal, State};
