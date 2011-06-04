@@ -21,7 +21,7 @@ parse(ParserPid,Data) ->
 stop(ParserPid) ->
   gen_fsm:send_all_state_event(ParserPid,stop).
 
-init([]) -> {ok, 'READY', #state{}}.
+init([]) -> {ok, 'WAITING', #state{}}.
 
 'READY'({parse,Data}, _From, State) ->
   case drop_all(Data) of
@@ -34,12 +34,12 @@ init([]) -> {ok, 'READY', #state{}}.
 'WAITING'({parse,Data}, _From, State) ->
   ExistingData = State#state.data,
   StateData = <<ExistingData/binary,Data/binary>>,
-  IsExpectEof = State#state.expect_eof,
-  io:format("Parse state data: ~p~n",[parse(StateData)]),
-  io:format("Expect eof: ~p~n",[IsExpectEof]),
-  io:format("Is null: ~p~n",[is_null(Data)]),
+  case is_eof(StateData) of
+    true -> io:format("Frames: ~p~n",[parse_frame(StateData)]);
+    _ -> io:format("Frames: not available yet~n")
+  end,
   {reply, {waiting, StateData}, 'WAITING',
-    State#state{data = StateData, expect_eof = is_expect_eof(IsExpectEof,Data)}
+    State#state{data = StateData}
   }.
 
 handle_event(stop, _StateName, State) ->
@@ -63,12 +63,12 @@ drop_all(Bin, []) -> Bin;
 drop_all(Bin, [FunctionToApply|RestOfFunctionsToApply]) ->
   drop_all(FunctionToApply(Bin), RestOfFunctionsToApply).
 
-parse(<<>>) -> {empty};
-parse(Data) ->
-  case binary:split(Data,<<?NULL>>,[trim]) of
-    [Element] -> {Element,<<>>};
-    [Element,<<?LF>>] -> {Element,<<>>};
-    [Element,Rest] -> {Element,Rest}
+parse_frame(<<>>) -> [];
+parse_frame(Data) ->
+  case binary:split(Data,<<?NULL>>,[global]) of
+    [Frame] -> [Frame];
+    [Frame,<<?LF>>] -> [Frame];
+    Frames -> valid_frames(Frames)
   end.
 
 is_expect_eof(true,_) -> true;
@@ -81,4 +81,29 @@ is_null(Data) ->
     nomatch -> false;
     _ -> true
   end.
+
+start_parsing(IsEofExpected,Data) ->
+  case IsEofExpected of
+    true ->
+      case is_null(Data) of
+        true -> true;
+        _ -> false
+      end;
+    _ -> false
+  end.
+
+is_eof(<<>>) -> false;
+is_eof(Data) ->
+  case binary:match(Data,<<?LF,?LF>>) of
+    nomatch -> false;
+    _ ->
+      case binary:match(Data,<<?NULL>>) of
+        nomatch -> false;
+        _ -> true
+      end
+  end.
+
+valid_frames([]) -> [];
+valid_frames(Frames) ->
+  [Frame||Frame <- Frames, Frame =/= <<>>].
 
