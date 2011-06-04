@@ -73,7 +73,6 @@ parse(Data) ->
 
 is_expect_eof(true,_) -> true;
 is_expect_eof(false,<<?LF>>) -> true;
-is_expect_eof(false,Data) -> is_null(Data);
 is_expect_eof(_,_) -> false.
 
 is_null(<<>>) -> false;
