@@ -1,2 +1,2 @@
-- Implement (and merge) fsm message frame parser
+- Consider removing fsm frame parser (no real reason for having it).
 
