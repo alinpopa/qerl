@@ -21,7 +21,7 @@ parse(ParserPid,Data) ->
 stop(ParserPid) ->
   gen_fsm:send_all_state_event(ParserPid,stop).
 
-init([]) -> {ok, 'WAITING', #state{}}.
+init([]) -> {ok, 'READY', #state{}}.
 
 'READY'({parse,Data}, _From, State) ->
   case drop_all(Data) of
@@ -35,7 +35,7 @@ init([]) -> {ok, 'WAITING', #state{}}.
   ExistingData = State#state.data,
   StateData = <<ExistingData/binary,Data/binary>>,
   case is_eof(StateData) of
-    true -> io:format("Frames: ~p~n",[parse_frame(StateData)]);
+    true -> io:format("Frames: ~p~n",[parse_frames(StateData)]);
     _ -> io:format("Frames: not available yet~n")
   end,
   {reply, {waiting, StateData}, 'WAITING',
@@ -63,13 +63,25 @@ drop_all(Bin, []) -> Bin;
 drop_all(Bin, [FunctionToApply|RestOfFunctionsToApply]) ->
   drop_all(FunctionToApply(Bin), RestOfFunctionsToApply).
 
-parse_frame(<<>>) -> [];
-parse_frame(Data) ->
-  case binary:split(Data,<<?NULL>>,[global]) of
-    [Frame] -> [Frame];
-    [Frame,<<?LF>>] -> [Frame];
-    Frames -> valid_frames(Frames)
+parse_frames(<<>>) -> {{rest,<<>>},{complete,[]}};
+parse_frames(Data) ->
+  SplitData = binary:split(Data,<<?NULL>>,[global]),
+  io:format("Split data: ~p~n",[SplitData]),
+  {{rest,Rest},{complete,Frames}} = parse_frames(SplitData,[]),
+  ValidFrames = lists:reverse(valid_frames(Frames)),
+  case Rest of
+    <<?LF>> -> {{rest,<<>>},{complete,ValidFrames}};
+    _ -> {{rest,Rest},{complete,ValidFrames}}
   end.
+
+parse_frames([],ParsedFrames) ->
+  {{rest,<<>>},{complete,ParsedFrames}};
+parse_frames([IncompleteFrame|[]], ParsedFrames) ->
+  {{rest,IncompleteFrame},{complete,ParsedFrames}};
+parse_frames([Frame,<<>>], ParsedFrames) ->
+  parse_frames([],[Frame|ParsedFrames]);
+parse_frames([Frame|Rest], ParsedFrames) ->
+  parse_frames(Rest, [Frame|ParsedFrames]).
 
 is_expect_eof(true,_) -> true;
 is_expect_eof(false,<<?LF>>) -> true;

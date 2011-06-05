@@ -55,7 +55,7 @@ handle_info({tcp,ClientSocket,Bin},State) ->
   Parser = State#conn_state.parser,
   Filters = State#conn_state.tcp_filters,
   ParseReply = ?STOMP_PARSER:parse(Parser,?TCP_FILTERS:apply(Filters,Bin)),
-  io:format("Got reply from parser: ~p~n",[ParseReply]),
+  %io:format("Got reply from parser: ~p~n",[ParseReply]),
   BinData = State#conn_state.data,
   NewBinData = <<BinData/binary, Bin/binary>>,
   inet:setopts(State#conn_state.client_socket, [{active, once}]),
