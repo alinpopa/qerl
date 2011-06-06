@@ -6,12 +6,11 @@
 
 -import(qerl_stomp_utils, [drop/2]).
 
--record(conn_state, {listening_socket, client_socket, data = <<>>, frames = [], fsm, parser, tcp_filters}).
+-record(conn_state, {listening_socket, client_socket, data = <<>>, frames = [], fsm, tcp_filters}).
 
 -define(LISTENER_MANAGER,qerl_conn_manager).
 -define(STOMP,qerl_stomp_protocol).
 -define(STOMP_FSM,qerl_stomp_fsm).
--define(STOMP_PARSER,qerl_stomp_frame_parser).
 -define(TCP_FILTERS,qerl_tcp_filters).
 -define(NULL,0).
 -define(LF,10).
@@ -31,10 +30,9 @@ trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 %%
 init([ListeningSocket]) ->
     {ok,FsmPid} = ?STOMP_FSM:start_link([self()]),
-    {ok,ParserPid} = ?STOMP_PARSER:start_link(),
     {ok,TcpFilters} = ?TCP_FILTERS:start_link(),
     gen_server:cast(self(), {listen}),
-    {ok,#conn_state{listening_socket = ListeningSocket, fsm = FsmPid, parser = ParserPid, tcp_filters = TcpFilters}}.
+    {ok,#conn_state{listening_socket = ListeningSocket, fsm = FsmPid, tcp_filters = TcpFilters}}.
 
 handle_cast({listen}, State) ->
     {ok,ClientSocket} = gen_tcp:accept(State#conn_state.listening_socket),
@@ -53,33 +51,15 @@ handle_cast(Msg,State) -> {noreply,State}.
 
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
-handle_info({tcp,ClientSocket,Bin},State) ->
-  Parser = State#conn_state.parser,
+handle_info({tcp,ClientSocket,TcpBin},State) ->
   Filters = State#conn_state.tcp_filters,
-  ParseReply = ?STOMP_PARSER:parse(Parser,?TCP_FILTERS:apply(Filters,Bin)),
-  %io:format("Got reply from parser: ~p~n",[ParseReply]),
-  
+  Bin = ?TCP_FILTERS:apply(Filters,TcpBin),
   BinData = State#conn_state.data,
   NewBinData = <<BinData/binary, Bin/binary>>,
   inet:setopts(State#conn_state.client_socket, [{active, once}]),
-  %case ?STOMP:is_eof(NewBinData) of
-  %    true ->
-  %        Parsed = ?STOMP:parse(NewBinData),
-  %        ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
-  %        {noreply,State#conn_state{data = <<>>}};
-  %    _ ->
-  %        {noreply,State#conn_state{data = drop(null,NewBinData)}}
-  %end;
-  case ParseReply of
-    {ready,[]} ->
-      {noreply,State#conn_state{data = NewBinData}};
-    {waiting,[]} ->
-      io:format("Waiting empty~n"),
-      {noreply,State#conn_state{data = NewBinData}};
-    {waiting,Frames} ->
-      %io:format("Waiting frames: ~p~n",[Frames]),
-      process_frames(State#conn_state.fsm, Frames),
-      {noreply, State#conn_state{data = <<>>}}
+  case check_and_process(NewBinData,State) of
+    <<>> -> {noreply,State#conn_state{data = <<>>}};
+    Rest -> {noreply,State#conn_state{data = Rest}}
   end;
 handle_info({tcp_closed,_ClientSocket},State) ->
     ?STOMP_FSM:stop(State#conn_state.fsm),
@@ -89,8 +69,8 @@ handle_info(Info,State) ->
 
 terminate(_Reason,State) ->
   ?TCP_FILTERS:stop(State#conn_state.tcp_filters),
-  ?STOMP_PARSER:stop(State#conn_state.parser),
   ok.
+
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
 
 process_frames(FsmProcessor,[]) -> ok;
@@ -98,13 +78,6 @@ process_frames(FsmProcessor,[Frame|Rest]) ->
   Parsed = ?STOMP:parse(Frame),
   ?STOMP_FSM:process(FsmProcessor, Parsed),
   process_frames(FsmProcessor,Rest).
-
-is_null(<<>>) -> false;
-is_null(Data) ->
-  case binary:match(Data,<<?NULL>>) of
-    nomatch -> false;
-    _ -> true
-  end.
 
 is_eof(<<>>) -> false;
 is_eof(Data) ->
@@ -139,4 +112,19 @@ parse_frames([Frame,<<>>], ParsedFrames) ->
   parse_frames([],[Frame|ParsedFrames]);
 parse_frames([Frame|Rest], ParsedFrames) ->
   parse_frames(Rest, [Frame|ParsedFrames]).
+
+check_and_process(Data,State) ->
+  case is_eof(Data) of
+    true ->
+      case parse_frames(Data) of
+        {{rest,Rest},{complete,ParsedFrames}} ->
+          process_frames(State#conn_state.fsm, ParsedFrames),
+          Rest;
+        ParsingResponse ->
+          io:format("Wrong response for parsing: ~p~n",[ParsingResponse]),
+          <<>>
+      end;
+    _ ->
+      Data
+  end.
 
