@@ -36,7 +36,7 @@ init([ListeningSocket]) ->
 
 handle_cast({listen}, State) ->
     {ok,ClientSocket} = gen_tcp:accept(State#conn_state.listening_socket),
-    io:format(" -> client connected (current no. of processes: ~p)~n",[length(processes())]),
+    error_logger:info_msg("Client connected (current no. of processes: ~p)~n",[length(processes())]),
     gen_tcp:controlling_process(ClientSocket,self()),
     inet:setopts(ClientSocket, [{active, once}]),
     ?LISTENER_MANAGER:detach(),
@@ -121,7 +121,7 @@ check_and_process(Data,State) ->
           process_frames(State#conn_state.fsm, ParsedFrames),
           Rest;
         ParsingResponse ->
-          io:format("Wrong response for parsing: ~p~n",[ParsingResponse]),
+          error_logger:error_msg("Wrong response for parsing: ~p~n",[ParsingResponse]),
           <<>>
       end;
     _ ->
