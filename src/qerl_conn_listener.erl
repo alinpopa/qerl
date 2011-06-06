@@ -13,6 +13,8 @@
 -define(STOMP_FSM,qerl_stomp_fsm).
 -define(STOMP_PARSER,qerl_stomp_frame_parser).
 -define(TCP_FILTERS,qerl_tcp_filters).
+-define(NULL,0).
+-define(LF,10).
 
 %%
 %% API functions
@@ -56,16 +58,28 @@ handle_info({tcp,ClientSocket,Bin},State) ->
   Filters = State#conn_state.tcp_filters,
   ParseReply = ?STOMP_PARSER:parse(Parser,?TCP_FILTERS:apply(Filters,Bin)),
   %io:format("Got reply from parser: ~p~n",[ParseReply]),
+  
   BinData = State#conn_state.data,
   NewBinData = <<BinData/binary, Bin/binary>>,
   inet:setopts(State#conn_state.client_socket, [{active, once}]),
-  case ?STOMP:is_eof(NewBinData) of
-      true ->
-          Parsed = ?STOMP:parse(NewBinData),
-          ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
-          {noreply,State#conn_state{data = <<>>}};
-      _ ->
-          {noreply,State#conn_state{data = drop(null,NewBinData)}}
+  %case ?STOMP:is_eof(NewBinData) of
+  %    true ->
+  %        Parsed = ?STOMP:parse(NewBinData),
+  %        ?STOMP_FSM:process(State#conn_state.fsm, Parsed),
+  %        {noreply,State#conn_state{data = <<>>}};
+  %    _ ->
+  %        {noreply,State#conn_state{data = drop(null,NewBinData)}}
+  %end;
+  case ParseReply of
+    {ready,[]} ->
+      {noreply,State#conn_state{data = NewBinData}};
+    {waiting,[]} ->
+      io:format("Waiting empty~n"),
+      {noreply,State#conn_state{data = NewBinData}};
+    {waiting,Frames} ->
+      %io:format("Waiting frames: ~p~n",[Frames]),
+      process_frames(State#conn_state.fsm, Frames),
+      {noreply, State#conn_state{data = <<>>}}
   end;
 handle_info({tcp_closed,_ClientSocket},State) ->
     ?STOMP_FSM:stop(State#conn_state.fsm),
@@ -78,4 +92,51 @@ terminate(_Reason,State) ->
   ?STOMP_PARSER:stop(State#conn_state.parser),
   ok.
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
+
+process_frames(FsmProcessor,[]) -> ok;
+process_frames(FsmProcessor,[Frame|Rest]) ->
+  Parsed = ?STOMP:parse(Frame),
+  ?STOMP_FSM:process(FsmProcessor, Parsed),
+  process_frames(FsmProcessor,Rest).
+
+is_null(<<>>) -> false;
+is_null(Data) ->
+  case binary:match(Data,<<?NULL>>) of
+    nomatch -> false;
+    _ -> true
+  end.
+
+is_eof(<<>>) -> false;
+is_eof(Data) ->
+  case binary:match(Data,<<?LF,?LF>>) of
+    nomatch -> false;
+    _ ->
+      case binary:match(Data,<<?NULL>>) of
+        nomatch -> false;
+        _ -> true
+      end
+  end.
+
+valid_frames([]) -> [];
+valid_frames(Frames) ->
+  [Frame||Frame <- Frames, Frame =/= <<>>].
+
+parse_frames(<<>>) -> {{rest,<<>>},{complete,[]}};
+parse_frames(Data) ->
+  SplitData = binary:split(Data,<<?NULL>>,[global]),
+  {{rest,Rest},{complete,Frames}} = parse_frames(SplitData,[]),
+  ValidFrames = lists:reverse(valid_frames(Frames)),
+  case Rest of
+    <<?LF>> -> {{rest,<<>>},{complete,ValidFrames}};
+    _ -> {{rest,Rest},{complete,ValidFrames}}
+  end.
+
+parse_frames([],ParsedFrames) ->
+  {{rest,<<>>},{complete,ParsedFrames}};
+parse_frames([IncompleteFrame|[]], ParsedFrames) ->
+  {{rest,IncompleteFrame},{complete,ParsedFrames}};
+parse_frames([Frame,<<>>], ParsedFrames) ->
+  parse_frames([],[Frame|ParsedFrames]);
+parse_frames([Frame|Rest], ParsedFrames) ->
+  parse_frames(Rest, [Frame|ParsedFrames]).
 
