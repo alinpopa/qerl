@@ -3,7 +3,7 @@
 -behaviour(qerl_queue).
 
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
--export([start_link/0,produce/1,consume/0,info/0]).
+-export([start_link/0,produce/2,consume/0,info/0]).
 
 -record(state,{queue}).
 
@@ -11,7 +11,7 @@
 %% API functions
 %%
 start_link() -> gen_server:start_link({local,?MODULE},?MODULE,[],[]).
-produce(Message) -> gen_server:call(?MODULE,{produce,Message}).
+produce(Headers,Message) -> gen_server:call(?MODULE,{produce,Headers,Message}).
 consume() -> gen_server:call(?MODULE,{consume}).
 info() -> gen_server:call(?MODULE,{info}).
 
@@ -20,8 +20,8 @@ info() -> gen_server:call(?MODULE,{info}).
 %%
 init([]) -> {ok, #state{queue = queue:new()}}.
 
-handle_call({produce,Message},_From,State) ->
-  NewQ = queue:in(Message,State#state.queue),
+handle_call({produce,Headers,Message},_From,State) ->
+  NewQ = queue:in({{message,Message},{headers,Headers}},State#state.queue),
   {reply,ok,State#state{queue = NewQ}};
 handle_call({consume},_From,State) ->
   case queue:out(State#state.queue) of

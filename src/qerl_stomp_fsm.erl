@@ -44,11 +44,11 @@ process(FsmPid, Else) ->
   trace("SEND"),
   io:format("Headers: ~p~n",[Headers]),
   io:format("Body: ~p~n",[Body]),
-  ?QSERVER:produce(Body),
+  ?QSERVER:produce(Headers,Body),
   {next_state, 'CONNECTED', StateData};
 'CONNECTED'({queue_info},StateData) ->
   QInfo = ?QSERVER:info(),
-  send_to_client(StateData#state.parent, "INFO\n" ++ format_queue_info(QInfo)),
+  send_to_client(StateData#state.parent, format_queue_info(QInfo)),
   {next_state, 'CONNECTED', StateData};
 'CONNECTED'({subscribe,_},StateData) ->
   case ?QSERVER:consume() of
@@ -70,9 +70,8 @@ stop(Pid) -> gen_fsm:send_event(Pid, {stop}).
 trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
 send_to_client(Parent,Msg) -> ?CONN_LISTENER:send_to_client(Parent,Msg).
 
-format_queue_info([]) -> "QUEUE is empty";
-format_queue_info(Messages) ->
-  lists:flatten(lists:map(fun(Message) -> "{Message: " ++ Message ++ "}" end, Messages)).
+format_queue_info(QueueInfo) ->
+  lists:flatten(io_lib:format("~p",[QueueInfo])).
 
 %%
 %% Callback functions
