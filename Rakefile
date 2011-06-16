@@ -5,7 +5,9 @@ BIN = 'ebin'
 TEST_BIN = 'tests_ebin'
 INCLUDE = 'include'
 ERLC_FLAGS = "-I#{INCLUDE} +warn_unused_vars +warn_unused_import"
-CLEAN.include(["#{BIN}/*.beam", "#{TEST_BIN}/*.beam", '*.dump'])
+CLEAN.include(["#{BIN}/*.beam", "#{TEST_BIN}/*.beam"])
+CLEAN.include(["#{BIN}/*.app", "#{BIN}/*.config", "#{BIN}/*.rel"])
+CLEAN.include(["*.dump","*.log"])
 SRC = FileList['src/*.erl','src/*.hrl']
 TESTS_SRC = FileList['tests/*.erl','tests/*.hrl']
 OBJ = SRC.pathmap("%{src,ebin}X.beam")
@@ -17,7 +19,10 @@ directory TEST_BIN
 namespace :erlang do
     desc "starting qerl"
     task :run => [:compile] do
-        sh("erl -boot start_sasl -noshell -pa #{BIN} -s qerl_example_server start")
+        sh("cp src/*.config #{BIN}/")
+        sh("cp src/*.rel #{BIN}/")
+        sh("cp src/*.app #{BIN}/")
+        sh("erl -config ./ebin/dev -boot start_sasl -noshell -pa #{BIN} -s qerl_example_server start")
     end
 end
 
