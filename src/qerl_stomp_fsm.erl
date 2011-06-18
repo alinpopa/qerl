@@ -62,6 +62,9 @@ process(FsmPid, Else) ->
   io:format("Headers: ~p~n",[Headers]),
   ?CONN_LISTENER:stop(StateData#state.parent),
   {stop, normal, StateData};
+'CONNECTED'({unknown_command,UnknownCommand}, StateData) ->
+  send_to_client(StateData#state.parent,"ERROR\nmessage:Unknown STOMP action: " ++ UnknownCommand),
+  {next_state, 'CONNECTED', StateData};
 'CONNECTED'(Event,StateData) ->
   trace(Event),
   {next_state, 'CONNECTED', StateData}.
