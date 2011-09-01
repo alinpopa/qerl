@@ -52,8 +52,11 @@ process(FsmPid, Else) ->
   {next_state, 'CONNECTED', StateData};
 'CONNECTED'({subscribe,_},StateData) ->
   case ?QSERVER:consume() of
-    {consume,Message} -> send_to_client(StateData#state.parent, "MESSAGE\ndestination:/x/y/z\nmessage-id: <message-identifier>\n\n" ++ Message);
-    {error,Error} -> send_to_client(StateData#state.parent, "ERROR\n" ++ Error)
+    {consume,Message} ->
+      io:format("What to send: ~p~n",[Message]),
+      send_to_client(StateData#state.parent, "MESSAGE\ndestination:/x/y/z\nmessage-id: <message-identifier>\n\n" ++ Message);
+    {error,Error} ->
+      send_to_client(StateData#state.parent, "ERROR\n" ++ Error)
   end,
   {next_state, 'CONNECTED', StateData};
 'CONNECTED'({disconnect,{headers,Headers}},StateData) ->

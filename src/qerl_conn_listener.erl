@@ -45,8 +45,8 @@ handle_cast({close},State) ->
     gen_tcp:close(State#conn_state.client_socket),
     {stop,normal,State};
 handle_cast({send_to_client,MsgToClient},State) ->
-    gen_tcp:send(State#conn_state.client_socket,[MsgToClient ++ [10,10,0]]),
-    {noreply,State};
+  gen_tcp:send(State#conn_state.client_socket,[MsgToClient ++ [10,10,0]]),
+  {noreply,State};
 handle_cast(Msg,State) -> {noreply,State}.
 
 handle_call(_Request,_From,State) -> {reply,ok,State}.
