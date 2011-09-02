@@ -53,8 +53,8 @@ process(FsmPid, Else) ->
 'CONNECTED'({subscribe,_},StateData) ->
   case ?QSERVER:consume() of
     {consume,Message} ->
-      io:format("What to send: ~p~n",[Message]),
-      send_to_client(StateData#state.parent, "MESSAGE\ndestination:/x/y/z\nmessage-id: <message-identifier>\n\n" ++ Message);
+      {{message,MessageBody},{_,_}} = Message,
+      send_to_client(StateData#state.parent, "MESSAGE\ndestination:/x/y/z\nmessage-id: <message-identifier>\n\n" ++ MessageBody);
     {error,Error} ->
       send_to_client(StateData#state.parent, "ERROR\n" ++ Error)
   end,
