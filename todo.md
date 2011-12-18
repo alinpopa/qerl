@@ -1,2 +1,3 @@
-- Consider removing fsm frame parser (no real reason for having it).
+- Consider riak\_core for distribution nature of qerl
+- Consider leveldb as message store
 
