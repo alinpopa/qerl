@@ -32,7 +32,7 @@ process(FsmPid, Else) ->
 'READY'({unknown_command,UnknownCommand}, StateData) ->
   send_to_client(StateData#state.parent,"ERROR\nmessage:Unknown STOMP action: " ++ UnknownCommand),
   {next_state, 'READY', StateData};
-'READY'(Event, StateData) ->
+'READY'(_Event, StateData) ->
   ParentListener = StateData#state.parent,
   send_to_client(ParentListener,"ERROR\nNot connected"),
   {next_state, 'READY', StateData}.

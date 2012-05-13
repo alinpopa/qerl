@@ -2,11 +2,6 @@
 
 -export([is_eof/1, parse/1]).
 
--import(binary,
-	[bin_to_list/1, match/2, replace/4, split/2, split/3]).
-
--import(qerl_stomp_utils, [drop/2]).
-
 -define(LF, 10).
 
 -define(NULL, 0).
@@ -108,10 +103,6 @@ data_without_null_and_lf(BinData) ->
     [H | _] = binary:split(BinData, <<(?NULL), (?LF)>>, []),
     H.
 
-to_list(BinList) ->
-    lists:map(fun (X) -> bin_to_list(X) end,
-	      lists:reverse(BinList)).
-
 to_headers(BinHeaders) -> to_headers(BinHeaders, []).
 
 to_headers([], Headers) -> Headers;
@@ -138,4 +129,3 @@ drop_invalid_beginning_frame(<<(?LF), Rest/binary>>) ->
     drop_invalid_beginning_frame(Rest);
 drop_invalid_beginning_frame(Frame) -> Frame.
 
-trace(Msg) -> io:format("~p: ~p~n", [?MODULE, Msg]).

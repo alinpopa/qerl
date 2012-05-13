@@ -4,8 +4,6 @@
 -export([init/1,handle_cast/2,handle_call/3,handle_info/2,terminate/2,code_change/3]).
 -export([start_link/1,stop/1,send_to_client/2]).
 
--import(qerl_stomp_utils, [drop/2]).
-
 -record(conn_state, {listening_socket, client_socket, data = <<>>, frames = [], fsm, tcp_filters}).
 
 -define(LISTENER_MANAGER,qerl_conn_manager).
