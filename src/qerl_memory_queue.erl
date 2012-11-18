@@ -10,10 +10,17 @@
 %%
 %% API functions
 %%
-start_link() -> gen_server:start_link({local,?MODULE},?MODULE,[],[]).
-produce(Headers,Message) -> gen_server:call(?MODULE,{produce,Headers,Message}).
-consume() -> gen_server:call(?MODULE,{consume}).
-info() -> gen_server:call(?MODULE,{info}).
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+produce(Headers, Message) ->
+    gen_server:call(?MODULE, {produce, Headers, Message}).
+
+consume() ->
+    gen_server:call(?MODULE, {consume}).
+
+info() ->
+    gen_server:call(?MODULE, {info}).
 
 %%
 %% Callback functions

@@ -6,7 +6,7 @@
 -import(qerl_stomp_utils, [drop/2]).
 
 -define(FILTERS,[
-  fun(Data) -> drop(cr,Data) end
+  fun(E) -> drop(cr, E) end
 ]).
 
 start_link() -> gen_server:start_link(?MODULE,[],[]).
@@ -20,10 +20,10 @@ stop(TcpFiltersPid) ->
 
 init([]) -> {ok, []}.
 
-handle_call({apply,Data},_From,State) ->
-  FilteredData = lists:foldl(fun(F,Data) -> F(Data) end, Data, ?FILTERS),
-  {reply,{ok,FilteredData},State};
-handle_call(_Request,_From,State) -> {noreply,State}.
+handle_call({apply, Data}, _From, State) ->
+  FilteredData = lists:foldl(fun(F, Acc) -> F(Acc) end, Data, ?FILTERS),
+  {reply, {ok, FilteredData}, State};
+handle_call(_Request, _From, State) -> {noreply, State}.
 
 handle_cast(stop,State) ->
   {stop, normal, State};

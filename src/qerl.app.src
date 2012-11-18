@@ -1,8 +1,8 @@
-{application, qerl_application,
+{application, qerl,
     [
         {description,"STOMP Q broker"},
         {vsn, "0.1"},
-        {modules, [qerl_application, qerl_supervisor, qerl_conn_manager, qerl_conn_listener, qerl_stomp_fsm, qerl_stomp_protocol]},
+        {modules, [qerl_app, qerl_supervisor, qerl_conn_manager, qerl_conn_listener, qerl_stomp_fsm, qerl_stomp_protocol]},
         {registered, []},
         {applications, [
             kernel,
@@ -10,7 +10,7 @@
         ]},
         {included_applications, []},
         {env, []},
-        {mod, {qerl_application,[]}}
+        {mod, {qerl_app,[]}}
     ]
 }.
 

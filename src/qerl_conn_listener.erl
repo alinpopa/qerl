@@ -21,8 +21,6 @@ start_link(ListeningSocket) -> gen_server:start_link(?MODULE,[ListeningSocket],[
 stop(Pid) -> gen_server:cast(Pid,{close}).
 send_to_client(Pid,Msg) -> gen_server:cast(Pid, {send_to_client,Msg}).
 
-trace(Msg) -> io:format("~p: ~p~n",[?MODULE,Msg]).
-
 %%
 %% Callback functions
 %%
@@ -45,11 +43,11 @@ handle_cast({close},State) ->
 handle_cast({send_to_client,MsgToClient},State) ->
   gen_tcp:send(State#conn_state.client_socket,[MsgToClient ++ [10,10,0]]),
   {noreply,State};
-handle_cast(Msg,State) -> {noreply,State}.
+handle_cast(_Msg,State) -> {noreply,State}.
 
 handle_call(_Request,_From,State) -> {reply,ok,State}.
 
-handle_info({tcp,ClientSocket,TcpBin},State) ->
+handle_info({tcp,_ClientSocket,TcpBin},State) ->
   Filters = State#conn_state.tcp_filters,
   Bin = ?TCP_FILTERS:apply(Filters,TcpBin),
   BinData = State#conn_state.data,
@@ -62,7 +60,7 @@ handle_info({tcp,ClientSocket,TcpBin},State) ->
 handle_info({tcp_closed,_ClientSocket},State) ->
     ?STOMP_FSM:stop(State#conn_state.fsm),
     {stop,normal,State};
-handle_info(Info,State) ->
+handle_info(_Info,State) ->
     {noreply,State}.
 
 terminate(_Reason,State) ->
@@ -71,7 +69,7 @@ terminate(_Reason,State) ->
 
 code_change(_OldVsn, State, _Extra) -> {ok,State}.
 
-process_frames(FsmProcessor,[]) -> ok;
+process_frames(_FsmProcessor,[]) -> ok;
 process_frames(FsmProcessor,[Frame|Rest]) ->
   Parsed = ?STOMP:parse(Frame),
   ?STOMP_FSM:process(FsmProcessor, Parsed),
