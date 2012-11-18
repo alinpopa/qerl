@@ -35,6 +35,10 @@ generate: compile
 release: generate
 	tar -C rel/qerl -czf qerl.tar.gz 
 
+dialyzer:
+	dialyzer -q -n ebin -Wunmatched_returns -Werror_handling \
+		-Wrace_conditions > dialyzer_warnings
+
 .PHONY: deps
 deps:
 	mkdir deps || true
