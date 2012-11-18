@@ -1,8 +1,8 @@
-CONFIG?=qerl.config
+REL_FILES_DIR?=rel/files
 
 ERL?=erl
 REBAR?=./rebar
-ERL_OPTS+=-pa apps/*/ebin -pa deps/*/ebin -bool start_sasl -config $(CONFIG)
+ERL_OPTS+=-pa apps/*/ebin -pa deps/*/ebin -bool start_sasl -config $(REL_FILES_DIR)/sys.config
 
 all: compile
 
