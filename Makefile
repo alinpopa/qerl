@@ -2,7 +2,7 @@ REL_FILES_DIR?=rel/files
 
 ERL?=erl
 REBAR?=./rebar
-ERL_OPTS+=-pa apps/*/ebin -pa deps/*/ebin -bool start_sasl -config $(REL_FILES_DIR)/sys.config
+ERL_OPTS+=-pa ebin -pa deps/*/ebin -bool start_sasl -config $(REL_FILES_DIR)/sys.config
 
 all: compile
 
@@ -19,7 +19,7 @@ start:
 	rel/qerl/bin/qerl console
 
 start_debug: compile
-	ERL_LIBS=$(ERL_LIBS) $(ERL) $(ERL_OPTS) -s qerl_app -eval 'debugger:start().'
+	$(ERL) $(ERL_OPTS) -s qerl -eval 'debugger:start().'
 
 test:
 	$(REBAR) compile
