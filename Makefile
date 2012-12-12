@@ -33,7 +33,7 @@ generate: compile
 	$(REBAR) generate -f
 
 release: generate
-	tar -C rel/qerl -czf qerl.tar.gz 
+	tar -czf qerl.tar.gz rel/qerl
 
 dialyzer:
 	dialyzer -q -n ebin -Wunmatched_returns -Werror_handling \
