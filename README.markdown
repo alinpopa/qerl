@@ -1,6 +1,6 @@
 qerl is an Erlang MQ Broker based on STOMP
 
-[![Build Status](https://travis-ci.org/alinpopa/qerl.png)](https://travis-ci.org/alinpopa/qerl)
+[![Build Status](https://api.travis-ci.org/alinpopa/qerl.png?branch=master)](https://travis-ci.org/alinpopa/qerl)
 
 (NOTE: THIS PRODUCT IS STILL IN VERY EARLY DEVELOPMENT PHASE)
 
