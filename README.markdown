@@ -6,7 +6,7 @@ qerl is an Erlang MQ Broker based on STOMP
 
 Requirements:  
   - make  
-  - erlang (>R14A)
+  - erlang (>R15B01)
 
 Install by running:  
 
