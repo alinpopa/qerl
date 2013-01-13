@@ -1,4 +1,4 @@
--module(qerl_application).
+-module(qerl_app).
 -behaviour(application).
 -export([start/2,stop/1,go/0]).
 

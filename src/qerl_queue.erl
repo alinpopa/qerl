@@ -3,7 +3,7 @@
 -export([behaviour_info/1]).
 
 behaviour_info(callbacks) ->
-    [{produce,1},
+    [{produce,2},
      {consume,0},
      {info,0}
     ];
